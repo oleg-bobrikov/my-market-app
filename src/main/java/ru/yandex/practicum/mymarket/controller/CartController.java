@@ -32,6 +32,9 @@ public class CartController {
 
         UUID sessionUuid = UuidCreator.fromString(sessionId);
         List<ItemDto> cartItems = cartService.getCartItems(sessionUuid);
+        if (cartItems.isEmpty()) {
+            return "redirect:/items";
+        }
         model.addAttribute("items", cartItems);
         model.addAttribute("total", cartService.getTotalPrice(cartItems));
 
@@ -43,7 +46,11 @@ public class CartController {
                                  @RequestParam Long id,
                                  @RequestParam CartAction action) {
         if (sessionId != null) {
-            cartService.updateCartItem(UuidCreator.fromString(sessionId), id, action);
+            UUID sessionUuid = UuidCreator.fromString(sessionId);
+            cartService.updateCartItem(sessionUuid, id, action);
+            if (cartService.getCartItems(sessionUuid).isEmpty()) {
+                return "redirect:/items";
+            }
         }
         return "redirect:/cart/items";
     }
