@@ -1,10 +1,10 @@
-package ru.yandex.practicum.mymarket;
+package ru.yandex.practicum.mymarket.integration;
 
+import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
+import ru.yandex.practicum.mymarket.BaseIntegrationTest;
 import ru.yandex.practicum.mymarket.model.CartAction;
 import ru.yandex.practicum.mymarket.repository.CartRepository;
 import ru.yandex.practicum.mymarket.repository.OrderRepository;
@@ -16,9 +16,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-public class OrderEndpointTest {
+public class OrderIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -31,12 +29,12 @@ public class OrderEndpointTest {
 
     @Test
     void testBuyAndRedirect() throws Exception {
-        UUID sessionId = UUID.randomUUID();
-        Long itemId = 1L;
+        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        long itemId = 1L;
 
         // 1. Добавляем товар в корзину
         mockMvc.perform(post("/items")
-                        .param("id", itemId.toString())
+                        .param("id", Long.toString(itemId))
                         .param("action", CartAction.PLUS.name())
                         .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
                 .andExpect(status().is3xxRedirection());
@@ -57,7 +55,7 @@ public class OrderEndpointTest {
         // 4. Проверяем, что заказ создался
         var orders = orderRepository.findAll();
         assertFalse(orders.isEmpty());
-        var savedOrder = orders.get(orders.size() - 1);
+        var savedOrder = orders.getLast();
         Long orderId = savedOrder.getId();
         assertEquals(sessionId, savedOrder.getSessionId());
 
@@ -74,7 +72,7 @@ public class OrderEndpointTest {
     @Test
     void testGetOrderWithoutNewOrderParam() throws Exception {
         // Создаем заказ вручную или через /buy
-        UUID sessionId = UUID.randomUUID();
+        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         mockMvc.perform(post("/items")
                         .param("id", "1")
                         .param("action", "PLUS")
@@ -83,7 +81,8 @@ public class OrderEndpointTest {
         String location = mockMvc.perform(post("/buy")
                         .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
                 .andReturn().getResponse().getHeader("Location");
-        
+
+        assertNotNull(location);
         String orderId = location.substring(location.lastIndexOf("/") + 1, location.indexOf("?"));
 
         // Проверяем GET /orders/{id} без параметра newOrder
@@ -98,5 +97,12 @@ public class OrderEndpointTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("orders"))
                 .andExpect(model().attributeExists("orders"));
+    }
+
+    @Test
+    void testBuyWithoutSessionRedirects() throws Exception {
+        mockMvc.perform(post("/buy"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items"));
     }
 }

@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import ru.yandex.practicum.mymarket.model.Order;
 import ru.yandex.practicum.mymarket.service.OrderService;
 
@@ -19,13 +20,15 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping("/buy")
-    public String buy(@CookieValue(value = "SESSION_ID", required = false) String sessionId) {
+    public String buy(@CookieValue(value = "SESSION_ID", required = false) String sessionId,
+                      RedirectAttributes redirectAttributes) {
         if (sessionId == null) {
             return "redirect:/items";
         }
         UUID sessionUuid = UuidCreator.fromString(sessionId);
         Long orderId = orderService.createOrder(sessionUuid);
-        return "redirect:/orders/" + orderId + "?newOrder=true";
+        redirectAttributes.addAttribute("newOrder", true);
+        return "redirect:/orders/" + orderId;
     }
 
     @GetMapping("/orders/{id}")

@@ -1,25 +1,24 @@
-package ru.yandex.practicum.mymarket;
+package ru.yandex.practicum.mymarket.controller;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.data.domain.Page;
+import ru.yandex.practicum.mymarket.BaseWebMvcTest;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.hamcrest.Matchers.containsString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-public class SortSelectionTest {
-
-    @Autowired
-    private MockMvc mockMvc;
+public class ItemControllerTest extends BaseWebMvcTest {
 
     @Test
     public void testSortSelectionPersists() throws Exception {
+        verifyNoInteractions(cartService);
+        when(itemService.getItems(anyString(), anyString(), any())).thenReturn(Page.empty());
+
         mockMvc.perform(get("/items").param("sort", "ALPHA"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("<option value=\"ALPHA\" selected=\"selected\">по алфавиту</option>")));
@@ -36,11 +35,13 @@ public class SortSelectionTest {
                         .param("action", "PLUS")
                         .param("sort", "PRICE"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/items?search=&sort=PRICE&pageSize=5&pageNumber=1#item-1"));
+                .andExpect(redirectedUrl("/items?search=&sort=PRICE&pageSize=5&pageNumber=1#item-1"));
     }
 
     @Test
     public void testRootPathReturnsItems() throws Exception {
+        when(itemService.getItems(anyString(), anyString(), any())).thenReturn(Page.empty());
+
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Витрина магазина")));

@@ -1,5 +1,6 @@
 package ru.yandex.practicum.mymarket.service;
 
+import com.github.f4b6a3.uuid.UuidCreator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -39,7 +40,7 @@ public class ItemService {
 
         Map<Long, Integer> cartCounts;
         if (sessionId != null && !sessionId.isBlank()) {
-            cartCounts = cartRepository.findBySessionId(UUID.fromString(sessionId)).stream()
+            cartCounts = cartRepository.findBySessionId(UuidCreator.fromString(sessionId)).stream()
                     .collect(Collectors.toMap(ci -> ci.getItem().getId(), CartItem::getCount));
         } else {
             cartCounts = Map.of();
@@ -56,7 +57,7 @@ public class ItemService {
         return itemRepository.findById(id).map(item -> {
             ItemDto itemDto = itemMapper.toDto(item);
             if (sessionId != null && !sessionId.isBlank()) {
-                int count = cartRepository.findBySessionIdAndItemId(UUID.fromString(sessionId), id)
+                int count = cartRepository.findBySessionIdAndItemId(UuidCreator.fromString(sessionId), id)
                         .map(CartItem::getCount)
                         .orElse(0);
                 itemDto.setCount(count);
