@@ -1,6 +1,6 @@
 plugins {
     java
-    id("org.springframework.boot") version "3.3.4"
+    id("org.springframework.boot") version "3.5.12"
     id("io.spring.dependency-management") version "1.1.6"
 }
 
@@ -45,7 +45,7 @@ dependencies {
 val mockitoAgent by configurations.creating
 
 dependencies {
-    mockitoAgent("net.bytebuddy:byte-buddy-agent:1.14.19")
+    mockitoAgent("net.bytebuddy:byte-buddy-agent:1.17.8")
 }
 
 tasks.withType<Test> {
