@@ -33,9 +33,9 @@ public class StaticImageService implements ImageService {
         if (imgPath == null) {
             return null;
         }
-        // Если путь начинается с images/, заменяем на /api/images/
+        // Если путь начинается с images/, заменяем на api/images/
         if (imgPath.startsWith("images/")) {
-            return "/api/images/" + imgPath.substring("images/".length());
+            return "api/images/" + imgPath.substring("images/".length());
         }
         return imgPath;
     }
