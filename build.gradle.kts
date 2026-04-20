@@ -37,6 +37,18 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+/**
+ * Мы создаём свою конфигурацию mockitoAgent.
+ * В ней будут лежать только jar-файлы, которые нужны для javaagent.
+ * Это нужно, чтобы не смешивать agent-зависимости с обычным кодом.
+ */
+val mockitoAgent by configurations.creating
+
+dependencies {
+    mockitoAgent("net.bytebuddy:byte-buddy-agent:1.14.19")
+}
+
 tasks.withType<Test> {
     useJUnitPlatform()
+    jvmArgs("-XX:+EnableDynamicAgentLoading", "-Xshare:off", "-javaagent:${mockitoAgent.asPath}")
 }
