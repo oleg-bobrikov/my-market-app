@@ -107,4 +107,27 @@ public class CartIntegrationTest {
                 .andExpect(model().attributeExists("item"))
                 .andExpect(model().attribute("item", org.hamcrest.Matchers.hasProperty("count", org.hamcrest.Matchers.is(2))));
     }
+
+    @Test
+    void testGetCartItems() throws Exception {
+        UUID sessionId = UUID.randomUUID();
+        Long itemId = 1L;
+
+        // Добавляем товар в корзину
+        mockMvc.perform(post("/items")
+                        .param("id", itemId.toString())
+                        .param("action", "PLUS")
+                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
+                .andExpect(status().is3xxRedirection());
+
+        // Проверяем страницу корзины
+        mockMvc.perform(get("/cart/items")
+                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
+                .andExpect(status().isOk())
+                .andExpect(view().name("cart"))
+                .andExpect(model().attributeExists("items"))
+                .andExpect(model().attributeExists("total"))
+                .andExpect(model().attribute("items", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(model().attribute("total", org.hamcrest.Matchers.notNullValue()));
+    }
 }

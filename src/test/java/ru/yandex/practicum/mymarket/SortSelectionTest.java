@@ -36,7 +36,7 @@ public class SortSelectionTest {
                         .param("action", "PLUS")
                         .param("sort", "PRICE"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/items?search=&sort=PRICE&pageSize=5&pageNumber=1"));
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/items?search=&sort=PRICE&pageSize=5&pageNumber=1#item-1"));
     }
 
     @Test

@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.mymarket.dto.ItemDto;
+import ru.yandex.practicum.mymarket.mapper.ItemMapper;
 import ru.yandex.practicum.mymarket.model.CartItem;
 import ru.yandex.practicum.mymarket.model.Item;
 import ru.yandex.practicum.mymarket.repository.CartRepository;
@@ -18,14 +20,16 @@ import java.util.stream.Collectors;
 public class ItemService {
     private final ItemRepository itemRepository;
     private final CartRepository cartRepository;
+    private final ItemMapper itemMapper;
 
     @Autowired
-    public ItemService(ItemRepository itemRepository, CartRepository cartRepository) {
+    public ItemService(ItemRepository itemRepository, CartRepository cartRepository, ItemMapper itemMapper) {
         this.itemRepository = itemRepository;
         this.cartRepository = cartRepository;
+        this.itemMapper = itemMapper;
     }
 
-    public Page<Item> getItems(String search, String sessionId, Pageable pageable) {
+    public Page<ItemDto> getItems(String search, String sessionId, Pageable pageable) {
         Page<Item> items;
         if (search == null || search.isBlank()) {
             items = itemRepository.findAll(pageable);
@@ -33,28 +37,32 @@ public class ItemService {
             items = itemRepository.findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(search, search, pageable);
         }
 
+        Map<Long, Integer> cartCounts;
         if (sessionId != null && !sessionId.isBlank()) {
-            Map<Long, Integer> cartCounts = cartRepository.findBySessionId(UUID.fromString(sessionId)).stream()
+            cartCounts = cartRepository.findBySessionId(UUID.fromString(sessionId)).stream()
                     .collect(Collectors.toMap(ci -> ci.getItem().getId(), CartItem::getCount));
-
-            items.forEach(item -> item.setCount(cartCounts.getOrDefault(item.getId(), 0)));
         } else {
-            items.forEach(item -> item.setCount(0));
+            cartCounts = Map.of();
         }
 
-        return items;
+        return items.map(item -> {
+            ItemDto itemDto = itemMapper.toDto(item);
+            itemDto.setCount(cartCounts.getOrDefault(item.getId(), 0));
+            return itemDto;
+        });
     }
 
-    public Optional<Item> getItemById(Long id, String sessionId) {
-        Optional<Item> item = itemRepository.findById(id);
-        if (item.isPresent() && sessionId != null && !sessionId.isBlank()) {
-            int count = cartRepository.findBySessionIdAndItemId(UUID.fromString(sessionId), id)
-                    .map(CartItem::getCount)
-                    .orElse(0);
-            item.get().setCount(count);
-        } else {
-            item.ifPresent(i -> i.setCount(0));
-        }
-        return item;
+    public Optional<ItemDto> getItemById(Long id, String sessionId) {
+        return itemRepository.findById(id).map(item -> {
+            ItemDto itemDto = itemMapper.toDto(item);
+            if (sessionId != null && !sessionId.isBlank()) {
+                int count = cartRepository.findBySessionIdAndItemId(UUID.fromString(sessionId), id)
+                        .map(CartItem::getCount)
+                        .orElse(0);
+                itemDto.setCount(count);
+            }
+
+            return itemDto;
+        });
     }
 }

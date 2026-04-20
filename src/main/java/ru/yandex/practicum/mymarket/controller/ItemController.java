@@ -10,8 +10,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import ru.yandex.practicum.mymarket.dto.ItemDto;
 import ru.yandex.practicum.mymarket.model.CartAction;
-import ru.yandex.practicum.mymarket.model.Item;
 import ru.yandex.practicum.mymarket.model.PagingInfo;
 import ru.yandex.practicum.mymarket.model.SortType;
 import ru.yandex.practicum.mymarket.service.ItemService;
@@ -61,20 +61,20 @@ public class ItemController {
             default -> Sort.unsorted();
         };
         Pageable pageable = PageRequest.of(pageNumber - 1, pageSize, sortOrder);
-        Page<Item> page = itemService.getItems(search, sessionId, pageable);
-        List<Item> content = page.getContent();
+        Page<ItemDto> page = itemService.getItems(search, sessionId, pageable);
+        List<ItemDto> content = page.getContent();
 
         int chunkSize = 5;
-        List<List<Item>> items = IntStream.range(0, (content.size() + chunkSize - 1) / chunkSize)
+        List<List<ItemDto>> items = IntStream.range(0, (content.size() + chunkSize - 1) / chunkSize)
                 .mapToObj(i -> {
                     int start = i * chunkSize;
                     int end = Math.min(start + chunkSize, content.size());
 
-                    List<Item> chunk = new ArrayList<>(content.subList(start, end));
+                    List<ItemDto> chunk = new ArrayList<>(content.subList(start, end));
 
                     // 🔹 добиваем до chunkSize элементов
                     while (chunk.size() < chunkSize) {
-                        chunk.add(new Item(-1L, "", "", "", BigDecimal.ZERO, 0));
+                        chunk.add(new ItemDto(-1L, "", "", "", BigDecimal.ZERO, 0));
                     }
 
                     return chunk;
@@ -114,9 +114,9 @@ public class ItemController {
     public String getItem(@PathVariable Long id,
                           @CookieValue(value = "SESSION_ID", required = false) String sessionId,
                           Model model) {
-        Item item = itemService.getItemById(id, sessionId)
-                .orElseGet(() -> new Item(-1L, "", "", "", BigDecimal.ZERO, 0));
-        model.addAttribute("item", item);
+        ItemDto itemDto = itemService.getItemById(id, sessionId)
+                .orElseGet(() -> new ItemDto(-1L, "", "", "", BigDecimal.ZERO, 0));
+        model.addAttribute("item", itemDto);
         return "item";
     }
 
