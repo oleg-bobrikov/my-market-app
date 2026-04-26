@@ -1,32 +1,33 @@
 package ru.yandex.practicum.mymarket.controller;
 
-import com.github.f4b6a3.uuid.UuidCreator;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.reactive.result.view.Rendering;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
 import ru.yandex.practicum.mymarket.dto.ItemDto;
 import ru.yandex.practicum.mymarket.model.CartAction;
 import ru.yandex.practicum.mymarket.model.PagingInfo;
 import ru.yandex.practicum.mymarket.model.SortType;
 import ru.yandex.practicum.mymarket.service.ItemService;
 import ru.yandex.practicum.mymarket.service.CartService;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.IntStream;
 
+@Slf4j
 @Controller
 @RequestMapping({"/items", "/"})
-public class ItemController {
+public class ItemController extends BaseController{
 
     private final ItemService itemService;
     private final CartService cartService;
@@ -37,97 +38,158 @@ public class ItemController {
         this.cartService = cartService;
     }
 
+
+
     @GetMapping
-    public String getItems(Model model,
-                           @RequestParam(required = false, defaultValue = "") String search,
-                           @RequestParam(required = false, defaultValue = "NO") SortType sort,
-                           @RequestParam(required = false, defaultValue = "5") int pageSize,
-                           @RequestParam(required = false, defaultValue = "1") int pageNumber,
-                           @CookieValue(value = "SESSION_ID", required = false) String sessionId,
-                           HttpServletResponse response) {
+    public Mono<Rendering> getItems(
+            @RequestParam(required = false, defaultValue = "") String search,
+            @RequestParam(required = false, defaultValue = "NO") SortType sort,
+            @RequestParam(required = false, defaultValue = "5") int pageSize,
+            @RequestParam(required = false, defaultValue = "1") int pageNumber,
+            @CookieValue(value = "SESSION_ID", required = false) String sessionId,
+            ServerWebExchange exchange
+    ) {
 
-        if (sessionId == null) {
-            sessionId = UuidCreator.getTimeOrderedEpoch().toString();
-            Cookie cookie = new Cookie("SESSION_ID", sessionId);
-            cookie.setPath("/");
-            cookie.setHttpOnly(true);
-            cookie.setMaxAge(7 * 24 * 60 * 60); // 1 неделя
-            response.addCookie(cookie);
-        }
+        // 1. Cookie
+        UUID sessionUuid = resolveSessionId(sessionId, exchange);
 
+        // 2. Pageable
         Sort sortOrder = switch (sort) {
-            case SortType.ALPHA -> Sort.by("title").ascending();
-            case SortType.PRICE -> Sort.by("price").ascending();
+            case ALPHA -> Sort.by("title").ascending();
+            case PRICE -> Sort.by("price").ascending();
             default -> Sort.unsorted();
         };
+
         Pageable pageable = PageRequest.of(pageNumber - 1, pageSize, sortOrder);
-        Page<ItemDto> page = itemService.getItems(search, sessionId, pageable);
-        List<ItemDto> content = page.getContent();
 
-        int chunkSize = 5;
-        List<List<ItemDto>> items = IntStream.range(0, (content.size() + chunkSize - 1) / chunkSize)
-                .mapToObj(i -> {
-                    int start = i * chunkSize;
-                    int end = Math.min(start + chunkSize, content.size());
+        // 3. Реактивная цепочка
+        return itemService.getItems(search, sessionUuid, pageable)
+                .collectList()
+                .map(content -> {
+                    int chunkSize = 5;
+                    List<List<ItemDto>> items = IntStream
+                            .range(0, (content.size() + chunkSize - 1) / chunkSize)
+                            .mapToObj(i -> {
+                                int start = i * chunkSize;
+                                int end = Math.min(start + chunkSize, content.size());
+                                List<ItemDto> chunk = new ArrayList<>(content.subList(start, end));
 
-                    List<ItemDto> chunk = new ArrayList<>(content.subList(start, end));
+                                while (chunk.size() < chunkSize) {
+                                    chunk.add(new ItemDto(-1L, "", "", "", BigDecimal.ZERO, 0));
+                                }
 
-                    // 🔹 добиваем до chunkSize элементов
-                    while (chunk.size() < chunkSize) {
-                        chunk.add(new ItemDto(-1L, "", "", "", BigDecimal.ZERO, 0));
-                    }
+                                return chunk;
+                            })
+                            .toList();
 
-                    return chunk;
-                })
-                .toList();
-
-        model.addAttribute("items", items);
-        model.addAttribute("search", search);
-        model.addAttribute("sort", sort);
-        model.addAttribute("paging", new PagingInfo(pageable.getPageSize(), pageable.getPageNumber() + 1, page.hasPrevious(), page.hasNext()));
-
-        return "items";
+                    return Rendering.view("items")
+                            .modelAttribute("items", items)
+                            .modelAttribute("search", search)
+                            .modelAttribute("sort", sort)
+                            .modelAttribute("paging",
+                                    new PagingInfo(
+                                            pageSize,
+                                            pageNumber,
+                                            pageNumber > 1,
+                                            content.size() == pageSize // примитивная hasNext
+                                    )
+                            )
+                            .build();
+                });
     }
 
     @PostMapping
-    public String updateItemCount(@RequestParam Long id,
-                                  @RequestParam CartAction action,
-                                  @RequestParam(required = false, defaultValue = "") String search,
-                                  @RequestParam(required = false, defaultValue = "NO") SortType sort,
-                                  @RequestParam(required = false, defaultValue = "5") int pageSize,
-                                  @RequestParam(required = false, defaultValue = "1") int pageNumber,
-                                  @CookieValue(value = "SESSION_ID", required = false) String sessionId,
-                                  RedirectAttributes redirectAttributes) {
-        if (sessionId != null) {
-            cartService.updateCartItem(UuidCreator.fromString(sessionId), id, action);
-        }
+    public Mono<String> updateItemCount(
+            ServerWebExchange exchange
+    ) {
+        return exchange.getFormData().flatMap(formData -> {
+            var queryParams = exchange.getRequest().getQueryParams();
 
-        redirectAttributes.addAttribute("search", search);
-        redirectAttributes.addAttribute("sort", sort);
-        redirectAttributes.addAttribute("pageSize", pageSize);
-        redirectAttributes.addAttribute("pageNumber", pageNumber);
-        
-        return "redirect:/items#item-" + id;
+            String idStr = getParam(formData, queryParams, "id");
+            String actionStr = getParam(formData, queryParams, "action");
+            String search = getParam(formData, queryParams, "search");
+            String sort = getParam(formData, queryParams, "sort");
+            String pageSizeStr = getParam(formData, queryParams, "pageSize");
+            String pageNumberStr = getParam(formData, queryParams, "pageNumber");
+
+            log.debug("updateItemCount: id={}, action={}, search={}, sort={}, pageSize={}, pageNumber={}",
+                    idStr, actionStr, search, sort, pageSizeStr, pageNumberStr);
+
+            if (idStr == null || actionStr == null) {
+                log.warn("Missing required parameters: id={}, action={}", idStr, actionStr);
+                return Mono.just("redirect:/items");
+            }
+
+            Long id = Long.valueOf(idStr);
+            CartAction action = CartAction.valueOf(actionStr);
+            int pageSize = pageSizeStr != null ? Integer.parseInt(pageSizeStr) : 5;
+            int pageNumber = pageNumberStr != null ? Integer.parseInt(pageNumberStr) : 1;
+            
+            String sessionId = exchange.getRequest().getCookies().getFirst("SESSION_ID") != null ? 
+                    Objects.requireNonNull(exchange.getRequest().getCookies().getFirst("SESSION_ID")).getValue() : null;
+            UUID sessionUuid = resolveSessionId(sessionId, exchange);
+
+            String redirectUrl = String.format(
+                    "redirect:/items?search=%s&sort=%s&pageSize=%d&pageNumber=%d#item-%d",
+                    search != null ? search : "", 
+                    sort != null ? sort : "NO", 
+                    pageSize, 
+                    pageNumber, 
+                    id
+            );
+
+            return cartService.updateCartItem(sessionUuid, id, action)
+                    .thenReturn(redirectUrl);
+        });
     }
 
-    @GetMapping("/{id}")
-    public String getItem(@PathVariable Long id,
-                          @CookieValue(value = "SESSION_ID", required = false) String sessionId,
-                          Model model) {
-        ItemDto itemDto = itemService.getItemById(id, sessionId)
-                .orElseGet(() -> new ItemDto(-1L, "", "", "", BigDecimal.ZERO, 0));
-        model.addAttribute("item", itemDto);
-        return "item";
+    @GetMapping("/{id:[0-9]+}")
+    public Mono<Rendering> getItem(
+            @PathVariable Long id,
+            @CookieValue(value = "SESSION_ID", required = false) String sessionId
+    ) {
+        if (sessionId == null) {
+            return Mono.just(
+                    Rendering.redirectTo("/items").build()
+            );
+        }
+        UUID sessionUuid = UUID.fromString(sessionId);
+
+        return itemService.findByItemIdAndSessionId(id, sessionUuid)
+                .defaultIfEmpty(emptyItem())
+                .map(item -> Rendering.view("item")
+                        .modelAttribute("item", item)
+                        .build()
+                );
     }
 
-    @PostMapping("/{id}")
-    public String updateItemCountOnPage(@PathVariable Long id,
-                                        @RequestParam CartAction action,
-                                        @CookieValue(value = "SESSION_ID", required = false) String sessionId) {
-        if (sessionId != null) {
-            cartService.updateCartItem(UuidCreator.fromString(sessionId), id, action);
-        }
-        return "redirect:/items/" + id;
+    private ItemDto emptyItem() {
+        return new ItemDto(-1L, "", "", "", BigDecimal.ZERO, 0);
+    }
+
+    @PostMapping("/{id:[0-9]+}")
+    public Mono<String> updateItemCountOnPage(
+            @PathVariable Long id,
+            ServerWebExchange exchange
+    ) {
+        return exchange.getFormData().flatMap(formData -> {
+            var queryParams = exchange.getRequest().getQueryParams();
+            String actionStr = getParam(formData, queryParams, "action");
+
+            log.debug("updateItemCountOnPage: id={}, action={}", id, actionStr);
+            if (actionStr == null) {
+                log.warn("Missing required parameter: action for item id={}", id);
+                return Mono.just("redirect:/items/" + id);
+            }
+
+            CartAction action = CartAction.valueOf(actionStr);
+            String sessionId = exchange.getRequest().getCookies().getFirst("SESSION_ID") != null ? 
+                    Objects.requireNonNull(exchange.getRequest().getCookies().getFirst("SESSION_ID")).getValue() : null;
+            UUID sessionUuid = resolveSessionId(sessionId, exchange);
+
+            return cartService.updateCartItem(sessionUuid, id, action)
+                    .thenReturn("redirect:/items/" + id);
+        });
     }
 
 }

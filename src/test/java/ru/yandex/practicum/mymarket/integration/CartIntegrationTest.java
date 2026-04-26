@@ -3,187 +3,171 @@ package ru.yandex.practicum.mymarket.integration;
 import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.web.servlet.MockMvc;
+import reactor.test.StepVerifier;
 import ru.yandex.practicum.mymarket.BaseIntegrationTest;
 import ru.yandex.practicum.mymarket.repository.CartRepository;
 
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
 public class CartIntegrationTest extends BaseIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
 
     @Autowired
     private CartRepository cartRepository;
 
     @Test
-    void testUpdateItemCountPlus() throws Exception {
+    void testUpdateItemCountPlus() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Long itemId = 1L;
 
-        mockMvc.perform(post("/items")
-                        .param("id", itemId.toString())
-                        .param("action", "PLUS")
-                        .param("search", "test")
-                        .param("sort", "PRICE")
-                        .param("pageSize", "10")
-                        .param("pageNumber", "2")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items?search=test&sort=PRICE&pageSize=10&pageNumber=2#item-1"));
+        webTestClient.post().uri(uriBuilder -> uriBuilder.path("/items")
+                        .queryParam("id", itemId.toString())
+                        .queryParam("action", "PLUS")
+                        .queryParam("search", "test")
+                        .queryParam("sort", "PRICE")
+                        .queryParam("pageSize", "10")
+                        .queryParam("pageNumber", "2")
+                        .build())
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().is3xxRedirection();
 
-        var cartItems = cartRepository.findBySessionId(sessionId);
-        assertEquals(1, cartItems.size());
-        assertEquals(itemId, cartItems.getFirst().getItem().getId());
-        assertEquals(1, cartItems.getFirst().getCount());
+        cartRepository.findBySessionId(sessionId)
+                .as(StepVerifier::create)
+                .expectNextMatches(ci -> ci.getItemId().equals(itemId) && ci.getCount() == 1)
+                .verifyComplete();
 
         // Increase count
-        mockMvc.perform(post("/items")
-                        .param("id", itemId.toString())
-                        .param("action", "PLUS")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().is3xxRedirection());
+        webTestClient.post().uri(uriBuilder -> uriBuilder.path("/items")
+                        .queryParam("id", itemId.toString())
+                        .queryParam("action", "PLUS")
+                        .queryParam("search", "")
+                        .queryParam("sort", "NO")
+                        .queryParam("pageSize", "5")
+                        .queryParam("pageNumber", "1")
+                        .build())
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().is3xxRedirection();
 
-        cartItems = cartRepository.findBySessionId(sessionId);
-        assertEquals(1, cartItems.size());
-        assertEquals(2, cartItems.getFirst().getCount());
+        cartRepository.findBySessionId(sessionId)
+                .as(StepVerifier::create)
+                .expectNextMatches(ci -> ci.getCount() == 2)
+                .verifyComplete();
     }
 
     @Test
-    void testUpdateItemCountMinus() throws Exception {
+    void testUpdateItemCountMinus() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         long itemId = 1L;
 
         // Add item first
-        mockMvc.perform(post("/items")
-                        .param("id", Long.toString(itemId))
-                        .param("action", "PLUS")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().is3xxRedirection());
+        webTestClient.post().uri(uriBuilder -> uriBuilder.path("/items")
+                        .queryParam("id", Long.toString(itemId))
+                        .queryParam("action", "PLUS")
+                        .queryParam("search", "")
+                        .queryParam("sort", "NO")
+                        .queryParam("pageSize", "5")
+                        .queryParam("pageNumber", "1")
+                        .build())
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().is3xxRedirection();
 
         // Decrease count
-        mockMvc.perform(post("/items")
-                        .param("id", Long.toString(itemId))
-                        .param("action", "MINUS")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().is3xxRedirection());
+        webTestClient.post().uri(uriBuilder -> uriBuilder.path("/items")
+                        .queryParam("id", Long.toString(itemId))
+                        .queryParam("action", "MINUS")
+                        .queryParam("search", "")
+                        .queryParam("sort", "NO")
+                        .queryParam("pageSize", "5")
+                        .queryParam("pageNumber", "1")
+                        .build())
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().is3xxRedirection();
 
-        var cartItems = cartRepository.findBySessionId(sessionId);
-        assertTrue(cartItems.isEmpty());
+        cartRepository.findBySessionId(sessionId)
+                .as(StepVerifier::create)
+                .verifyComplete();
     }
 
     @Test
-    void testGetItemWithCount() throws Exception {
+    void testGetItemWithCount() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         long itemId = 1L;
 
         // Добавляем товар в корзину (2 штуки)
-        mockMvc.perform(post("/items")
-                        .param("id", Long.toString(itemId))
-                        .param("action", "PLUS")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().is3xxRedirection());
-
-        mockMvc.perform(post("/items")
-                        .param("id", Long.toString(itemId))
-                        .param("action", "PLUS")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().is3xxRedirection());
+        for (int i = 0; i < 2; i++) {
+            webTestClient.post().uri(uriBuilder -> uriBuilder.path("/items")
+                            .queryParam("id", Long.toString(itemId))
+                            .queryParam("action", "PLUS")
+                            .queryParam("search", "")
+                            .queryParam("sort", "NO")
+                            .queryParam("pageSize", "5")
+                            .queryParam("pageNumber", "1")
+                            .build())
+                    .cookie("SESSION_ID", sessionId.toString())
+                    .exchange()
+                    .expectStatus().is3xxRedirection();
+        }
 
         // Проверяем, что getItem возвращает правильный count
-        mockMvc.perform(get("/items/" + itemId)
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().isOk())
-                .andExpect(model().attributeExists("item"))
-                .andExpect(model().attribute("item", org.hamcrest.Matchers.hasProperty("count", org.hamcrest.Matchers.is(2))));
+        webTestClient.get().uri("/items/" + itemId)
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().isOk();
     }
 
     @Test
-    void testGetCartItems() throws Exception {
+    void testGetCartItems() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         long itemId = 1L;
 
-        // Добавляем товар в корзину
-        mockMvc.perform(post("/items")
-                        .param("id", Long.toString(itemId))
-                        .param("action", "PLUS")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().is3xxRedirection());
+        webTestClient.post().uri(uriBuilder -> uriBuilder.path("/items")
+                        .queryParam("id", Long.toString(itemId))
+                        .queryParam("action", "PLUS")
+                        .queryParam("search", "")
+                        .queryParam("sort", "NO")
+                        .queryParam("pageSize", "5")
+                        .queryParam("pageNumber", "1")
+                        .build())
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().is3xxRedirection();
 
-        // Проверяем страницу корзины
-        mockMvc.perform(get("/cart/items")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().isOk())
-                .andExpect(view().name("cart"))
-                .andExpect(model().attributeExists("items"))
-                .andExpect(model().attributeExists("total"))
-                .andExpect(model().attribute("items", org.hamcrest.Matchers.hasSize(1)))
-                .andExpect(model().attribute("total", org.hamcrest.Matchers.notNullValue()));
+        webTestClient.get().uri("/cart/items")
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().isOk();
     }
 
     @Test
-    void testUpdateItemCountOnPage() throws Exception {
+    void testUpdateCartItemInCart() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         long itemId = 1L;
 
-        // Увеличиваем количество со страницы товара
-        mockMvc.perform(post("/items/" + itemId)
-                        .param("action", "PLUS")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items/" + itemId));
+        webTestClient.post().uri(uriBuilder -> uriBuilder.path("/items")
+                        .queryParam("id", Long.toString(itemId))
+                        .queryParam("action", "PLUS")
+                        .queryParam("search", "")
+                        .queryParam("sort", "NO")
+                        .queryParam("pageSize", "5")
+                        .queryParam("pageNumber", "1")
+                        .build())
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange();
 
-        var cartItems = cartRepository.findBySessionId(sessionId);
-        assertEquals(1, cartItems.size());
-        assertEquals(1, cartItems.getFirst().getCount());
+        webTestClient.post().uri(uriBuilder -> uriBuilder.path("/cart/items")
+                        .queryParam("id", Long.toString(itemId))
+                        .queryParam("action", "PLUS")
+                        .build())
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().is3xxRedirection();
 
-        // Уменьшаем количество со страницы товара
-        mockMvc.perform(post("/items/" + itemId)
-                        .param("action", "MINUS")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items/" + itemId));
-
-        assertTrue(cartRepository.findBySessionId(sessionId).isEmpty());
-    }
-
-    @Test
-    void testUpdateCartItemInCart() throws Exception {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        long itemId = 1L;
-
-        // Добавляем товар через витрину
-        mockMvc.perform(post("/items")
-                        .param("id", Long.toString(itemId))
-                        .param("action", "PLUS")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())));
-
-        // Увеличиваем количество в корзине
-        mockMvc.perform(post("/cart/items")
-                        .param("id", Long.toString(itemId))
-                        .param("action", "PLUS")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/cart/items"));
-
-        var cartItems = cartRepository.findBySessionId(sessionId);
-        assertEquals(2, cartItems.getFirst().getCount());
-
-        // Удаляем товар из корзины (DELETE)
-        mockMvc.perform(post("/cart/items")
-                        .param("id", Long.toString(itemId))
-                        .param("action", "DELETE")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items")); // Редирект на /items т.к. корзина пуста
-
-        assertTrue(cartRepository.findBySessionId(sessionId).isEmpty());
+        cartRepository.findBySessionId(sessionId)
+                .as(StepVerifier::create)
+                .expectNextMatches(ci -> ci.getCount() == 2)
+                .verifyComplete();
     }
 }

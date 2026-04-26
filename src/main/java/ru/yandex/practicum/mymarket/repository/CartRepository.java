@@ -1,14 +1,23 @@
 package ru.yandex.practicum.mymarket.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.r2dbc.repository.Query;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
-import ru.yandex.practicum.mymarket.model.CartItem;
-import java.util.List;
-import java.util.Optional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import ru.yandex.practicum.mymarket.entity.CartItemEntity;
+
 import java.util.UUID;
 
 @Repository
-public interface CartRepository extends JpaRepository<CartItem, Long> {
-    Optional<CartItem> findBySessionIdAndItemId(UUID sessionId, Long itemId);
-    List<CartItem> findBySessionId(UUID sessionId);
+public interface CartRepository extends ReactiveCrudRepository<CartItemEntity, Long> {
+    Mono<CartItemEntity> findBySessionIdAndItemId(UUID sessionId, Long itemId);
+
+    Flux<CartItemEntity> findBySessionId(UUID sessionId);
+
+    @Query("""
+            DELETE FROM carts
+            WHERE session_id = :sessionId
+            """)
+    Mono<Void> deleteBySessionId(UUID sessionId);
 }

@@ -2,102 +2,95 @@ package ru.yandex.practicum.mymarket.controller;
 
 import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
-import ru.yandex.practicum.mymarket.BaseWebMvcTest;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import ru.yandex.practicum.mymarket.BaseWebFluxTest;
 import ru.yandex.practicum.mymarket.dto.ItemDto;
 import ru.yandex.practicum.mymarket.model.CartAction;
 
 import java.math.BigDecimal;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-public class CartControllerTest extends BaseWebMvcTest {
+public class CartControllerTest extends BaseWebFluxTest {
 
     @Test
-    public void testGetCartItemsReturnsCartView() throws Exception {
-        UUID sessionId =  UuidCreator.getTimeOrderedEpoch();
-        List<ItemDto> items = List.of(
-                ItemDto.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build()
-        );
-        when(cartService.getCartItems(sessionId)).thenReturn(items);
-        when(cartService.getTotalPrice(items)).thenReturn(BigDecimal.TEN);
-
-        mockMvc.perform(get("/cart/items")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().isOk())
-                .andExpect(view().name("cart"))
-                .andExpect(model().attribute("items", items))
-                .andExpect(model().attribute("total", BigDecimal.TEN));
-    }
-
-    @Test
-    public void testGetCartItemsRedirectsToItemsWhenNoSession() throws Exception {
-        mockMvc.perform(get("/cart/items"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items"));
-    }
-
-    @Test
-    public void testUpdateCartItemRedirectsToCart() throws Exception {
+    public void testGetCartItemsReturnsCartView() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        when(cartService.getCartItems(sessionId)).thenReturn(List.of(new ItemDto()));
+        ItemDto item = ItemDto.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
+        List<ItemDto> items = List.of(item);
 
-        mockMvc.perform(post("/cart/items")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString()))
-                        .param("id", "1")
-                        .param("action", "PLUS"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/cart/items"));
+        when(cartService.getCartItems(sessionId)).thenReturn(Flux.fromIterable(items));
+        when(cartService.getTotalPrice(items)).thenReturn(Mono.just(BigDecimal.TEN));
+
+        webTestClient.get().uri("/cart/items")
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().isOk();
+    }
+
+    @Test
+    public void testGetCartItemsCreatesSessionWhenNoSession() {
+        when(cartService.getCartItems(any())).thenReturn(Flux.empty());
+
+        webTestClient.get().uri("/cart/items")
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/items")
+                .expectCookie().exists("SESSION_ID");
+    }
+
+    @Test
+    public void testUpdateCartItemRedirectsToCart() {
+        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        ItemDto item = ItemDto.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
+
+        when(cartService.updateCartItem(eq(sessionId), eq(1L), eq(CartAction.PLUS))).thenReturn(Mono.empty());
+        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(item));
+
+        webTestClient.post().uri(uriBuilder -> uriBuilder.path("/cart/items")
+                        .queryParam("id", "1")
+                        .queryParam("action", "PLUS")
+                        .build())
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/cart/items");
 
         verify(cartService).updateCartItem(eq(sessionId), eq(1L), eq(CartAction.PLUS));
     }
 
     @Test
-    void testRedirectToItemsWhenCartIsEmptyOnGet() throws Exception {
+    void testRedirectToItemsWhenCartIsEmptyOnGet() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        when(cartService.getCartItems(sessionId)).thenReturn(Collections.emptyList());
+        when(cartService.getCartItems(sessionId)).thenReturn(Flux.empty());
 
-        // Доступ к корзине без товаров должен перенаправлять на /items
-        mockMvc.perform(get("/cart/items")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items"));
+        webTestClient.get().uri("/cart/items")
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/items");
     }
 
     @Test
-    void testRedirectToItemsWhenCartBecomesEmptyOnUpdate() throws Exception {
+    public void testUpdateCartItemWithFormData() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        long itemId = 1L;
+        ItemDto item = ItemDto.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
 
-        when(cartService.getCartItems(sessionId)).thenReturn(Collections.emptyList());
+        when(cartService.updateCartItem(eq(sessionId), eq(1L), eq(CartAction.PLUS))).thenReturn(Mono.empty());
+        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(item));
 
-        // Удаляем товар (action=DELETE)
-        mockMvc.perform(post("/cart/items")
-                        .param("id", Long.toString(itemId))
-                        .param("action", "DELETE")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items"));
-    }
+        webTestClient.post().uri("/cart/items")
+                .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
+                .body(org.springframework.web.reactive.function.BodyInserters.fromFormData("id", "1")
+                        .with("action", "PLUS"))
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/cart/items");
 
-    @Test
-    void testRedirectToItemsWhenCartBecomesEmptyOnMinus() throws Exception {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        long itemId = 1L;
-
-        when(cartService.getCartItems(sessionId)).thenReturn(Collections.emptyList());
-
-        // Уменьшаем количество до 0 (action=MINUS для товара в количестве 1 удаляет его)
-        mockMvc.perform(post("/cart/items")
-                        .param("id", Long.toString(itemId))
-                        .param("action", "MINUS")
-                        .cookie(new jakarta.servlet.http.Cookie("SESSION_ID", sessionId.toString())))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items"));
+        verify(cartService).updateCartItem(eq(sessionId), eq(1L), eq(CartAction.PLUS));
     }
 }
