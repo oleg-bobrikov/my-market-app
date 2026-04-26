@@ -4,9 +4,9 @@ import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import ru.yandex.practicum.mymarket.BaseWebFluxTest;
 import ru.yandex.practicum.mymarket.dto.ItemDto;
 import ru.yandex.practicum.mymarket.model.CartAction;
+import ru.yandex.practicum.mymarket.model.Item;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -19,11 +19,13 @@ public class CartControllerTest extends BaseWebFluxTest {
     @Test
     public void testGetCartItemsReturnsCartView() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        ItemDto item = ItemDto.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
-        List<ItemDto> items = List.of(item);
+        Item item = Item.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
+        List<Item> items = List.of(item);
+        ItemDto itemDto = ItemDto.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
 
         when(cartService.getCartItems(sessionId)).thenReturn(Flux.fromIterable(items));
         when(cartService.getTotalPrice(items)).thenReturn(Mono.just(BigDecimal.TEN));
+        when(itemMapper.toDto(item)).thenReturn(itemDto);
 
         webTestClient.get().uri("/cart/items")
                 .cookie("SESSION_ID", sessionId.toString())
@@ -45,7 +47,7 @@ public class CartControllerTest extends BaseWebFluxTest {
     @Test
     public void testUpdateCartItemRedirectsToCart() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        ItemDto item = ItemDto.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
+        Item item = Item.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
 
         when(cartService.updateCartItem(eq(sessionId), eq(1L), eq(CartAction.PLUS))).thenReturn(Mono.empty());
         when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(item));
@@ -77,7 +79,7 @@ public class CartControllerTest extends BaseWebFluxTest {
     @Test
     public void testUpdateCartItemWithFormData() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        ItemDto item = ItemDto.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
+        Item item = Item.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
 
         when(cartService.updateCartItem(eq(sessionId), eq(1L), eq(CartAction.PLUS))).thenReturn(Mono.empty());
         when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(item));

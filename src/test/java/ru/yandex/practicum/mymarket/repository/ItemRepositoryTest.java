@@ -2,8 +2,8 @@ package ru.yandex.practicum.mymarket.repository;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import reactor.test.StepVerifier;
-import ru.yandex.practicum.mymarket.BaseDataR2dbcTest;
 import ru.yandex.practicum.mymarket.entity.ItemEntity;
 
 import java.math.BigDecimal;
@@ -27,7 +27,7 @@ class ItemRepositoryTest extends BaseDataR2dbcTest {
                 .expectNextCount(1)
                 .verifyComplete();
 
-        itemRepository.searchByTitleOrDescription("%iPhone%", 10, 0)
+        itemRepository.searchByTitleOrDescription("%iPhone%", PageRequest.of(0, 10))
                 .as(StepVerifier::create)
                 .expectNextMatches(result -> result.getTitle().equals("Apple iPhone 15"))
                 .verifyComplete();
@@ -47,7 +47,7 @@ class ItemRepositoryTest extends BaseDataR2dbcTest {
                 .expectNextCount(1)
                 .verifyComplete();
 
-        itemRepository.searchByTitleOrDescription("%M2%", 10, 0)
+        itemRepository.searchByTitleOrDescription("%M2%", PageRequest.of(0, 10))
                 .as(StepVerifier::create)
                 .expectNextMatches(result -> result.getDescription().contains("M2 chip"))
                 .verifyComplete();
@@ -67,7 +67,7 @@ class ItemRepositoryTest extends BaseDataR2dbcTest {
                 .expectNextCount(1)
                 .verifyComplete();
 
-        itemRepository.searchByTitleOrDescription("%SAMSUNG%", 10, 0)
+        itemRepository.searchByTitleOrDescription("%SAMSUNG%", PageRequest.of(0, 10))
                 .as(StepVerifier::create)
                 .expectNextMatches(result -> result.getTitle().equalsIgnoreCase("Samsung Galaxy"))
                 .verifyComplete();

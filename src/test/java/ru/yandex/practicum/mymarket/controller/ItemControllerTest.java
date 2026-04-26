@@ -3,7 +3,6 @@ package ru.yandex.practicum.mymarket.controller;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import ru.yandex.practicum.mymarket.BaseWebFluxTest;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;

@@ -8,13 +8,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
-import ru.yandex.practicum.mymarket.dto.ItemDto;
 import ru.yandex.practicum.mymarket.entity.CartItemEntity;
 import ru.yandex.practicum.mymarket.entity.ItemEntity;
 import ru.yandex.practicum.mymarket.mapper.CartItemMapper;
 import ru.yandex.practicum.mymarket.mapper.ItemMapper;
 import ru.yandex.practicum.mymarket.model.CartAction;
 import ru.yandex.practicum.mymarket.model.CartItem;
+import ru.yandex.practicum.mymarket.model.Item;
 import ru.yandex.practicum.mymarket.repository.CartRepository;
 import ru.yandex.practicum.mymarket.repository.ItemRepository;
 
@@ -152,8 +152,8 @@ class CartServiceTest {
 
     @Test
     void getTotalPrice() {
-        ItemDto item1 = ItemDto.builder().price(new BigDecimal("100.00")).count(2).build();
-        ItemDto item2 = ItemDto.builder().price(new BigDecimal("50.00")).count(1).build();
+        Item item1 = Item.builder().price(new BigDecimal("100.00")).count(2).build();
+        Item item2 = Item.builder().price(new BigDecimal("50.00")).count(1).build();
 
         cartService.getTotalPrice(List.of(item1, item2))
                 .as(StepVerifier::create)
@@ -163,7 +163,7 @@ class CartServiceTest {
 
     @Test
     void getTotalPrice_NoNPE_AfterFix() {
-        ItemDto itemWithNullCount = ItemDto.builder()
+        Item itemWithNullCount = Item.builder()
                 .price(new BigDecimal("100.00"))
                 .count(null)
                 .build();

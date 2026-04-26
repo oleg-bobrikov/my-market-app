@@ -21,12 +21,7 @@ public abstract class ItemMapper {
     @Mapping(target = "imgPath", qualifiedByName = "mapImage")
     public abstract ItemDto toDto(Item item);
 
-    @Mapping(target = "imgPath", qualifiedByName = "mapImage")
-    public abstract ItemDto toDto(ItemEntity item);
-
     public abstract Item toModel(ItemEntity entity);
-
-    public abstract ItemEntity toEntity(Item model);
 
     @Named("mapImage")
     protected String mapImage(String path) {

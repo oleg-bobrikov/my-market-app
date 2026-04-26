@@ -20,7 +20,6 @@ CREATE TABLE carts
     session_id UUID    NOT NULL,
     item_id    BIGINT  NOT NULL,
     count      INTEGER NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_carts_item FOREIGN KEY (item_id) REFERENCES items (id) ON DELETE CASCADE,
     CONSTRAINT uk_carts_session_item UNIQUE (session_id, item_id),

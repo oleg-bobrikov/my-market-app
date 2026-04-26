@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import ru.yandex.practicum.mymarket.dto.ItemDto;
+import ru.yandex.practicum.mymarket.mapper.ItemMapper;
 import ru.yandex.practicum.mymarket.model.CartAction;
 import ru.yandex.practicum.mymarket.service.CartService;
 
@@ -17,10 +19,12 @@ import java.util.UUID;
 @RequestMapping("/cart")
 public class CartController extends BaseController{
     private final CartService cartService;
+    private final ItemMapper itemMapper;
 
     @Autowired
-    public CartController(CartService cartService) {
+    public CartController(CartService cartService, ItemMapper itemMapper) {
         this.cartService = cartService;
+        this.itemMapper = itemMapper;
     }
 
     @GetMapping("/items")
@@ -37,10 +41,13 @@ public class CartController extends BaseController{
                         return Mono.just(Rendering.redirectTo("/items").build());
                     }
                     return cartService.getTotalPrice(items)
-                            .map(total -> Rendering.view("cart")
-                                    .modelAttribute("items", items)
-                                    .modelAttribute("total", total)
-                                    .build());
+                            .map(total -> {
+                                var dtos = items.stream().map(itemMapper::toDto).toList();
+                                return Rendering.view("cart")
+                                        .modelAttribute("items", dtos)
+                                        .modelAttribute("total", total)
+                                        .build();
+                            });
                 })
                 .switchIfEmpty(Mono.just(Rendering.redirectTo("/items").build()));
     }

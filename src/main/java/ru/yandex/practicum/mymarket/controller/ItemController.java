@@ -11,6 +11,7 @@ import org.springframework.web.reactive.result.view.Rendering;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.mymarket.dto.ItemDto;
+import ru.yandex.practicum.mymarket.mapper.ItemMapper;
 import ru.yandex.practicum.mymarket.model.CartAction;
 import ru.yandex.practicum.mymarket.model.PagingInfo;
 import ru.yandex.practicum.mymarket.model.SortType;
@@ -20,24 +21,24 @@ import ru.yandex.practicum.mymarket.service.CartService;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
 @Slf4j
 @Controller
 @RequestMapping({"/items", "/"})
-public class ItemController extends BaseController{
+public class ItemController extends BaseController {
 
     private final ItemService itemService;
     private final CartService cartService;
+    private final ItemMapper itemMapper;
 
     @Autowired
-    public ItemController(ItemService itemService, CartService cartService) {
+    public ItemController(ItemService itemService, CartService cartService, ItemMapper itemMapper) {
         this.itemService = itemService;
         this.cartService = cartService;
+        this.itemMapper = itemMapper;
     }
-
 
 
     @GetMapping
@@ -50,10 +51,8 @@ public class ItemController extends BaseController{
             ServerWebExchange exchange
     ) {
 
-        // 1. Cookie
         UUID sessionUuid = resolveSessionId(sessionId, exchange);
 
-        // 2. Pageable
         Sort sortOrder = switch (sort) {
             case ALPHA -> Sort.by("title").ascending();
             case PRICE -> Sort.by("price").ascending();
@@ -62,8 +61,8 @@ public class ItemController extends BaseController{
 
         Pageable pageable = PageRequest.of(pageNumber - 1, pageSize, sortOrder);
 
-        // 3. Реактивная цепочка
         return itemService.getItems(search, sessionUuid, pageable)
+                .map(itemMapper::toDto)
                 .collectList()
                 .map(content -> {
                     int chunkSize = 5;
@@ -100,45 +99,51 @@ public class ItemController extends BaseController{
 
     @PostMapping
     public Mono<String> updateItemCount(
+            @RequestParam(required = false) Long id,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false, defaultValue = "NO") String sort,
+            @RequestParam(required = false, defaultValue = "5") Integer pageSize,
+            @RequestParam(required = false, defaultValue = "1") Integer pageNumber,
+            @CookieValue(name = "SESSION_ID", required = false) String sessionId,
             ServerWebExchange exchange
     ) {
         return exchange.getFormData().flatMap(formData -> {
             var queryParams = exchange.getRequest().getQueryParams();
-
             String idStr = getParam(formData, queryParams, "id");
-            String actionStr = getParam(formData, queryParams, "action");
-            String search = getParam(formData, queryParams, "search");
-            String sort = getParam(formData, queryParams, "sort");
-            String pageSizeStr = getParam(formData, queryParams, "pageSize");
-            String pageNumberStr = getParam(formData, queryParams, "pageNumber");
+            Long finalId = idStr != null ? Long.valueOf(idStr) : id;
+
+            String finalAction = action != null ? action : getParam(formData, queryParams, "action");
+            String finalSearch = search != null ? search : getParam(formData, queryParams, "search");
 
             log.debug("updateItemCount: id={}, action={}, search={}, sort={}, pageSize={}, pageNumber={}",
-                    idStr, actionStr, search, sort, pageSizeStr, pageNumberStr);
+                    finalId, finalAction, finalSearch, sort, pageSize, pageNumber);
 
-            if (idStr == null || actionStr == null) {
-                log.warn("Missing required parameters: id={}, action={}", idStr, actionStr);
+            if (finalId == null || finalAction == null) {
+                log.warn("Missing required parameters: id={}, action={}", finalId, finalAction);
                 return Mono.just("redirect:/items");
             }
 
-            Long id = Long.valueOf(idStr);
-            CartAction action = CartAction.valueOf(actionStr);
-            int pageSize = pageSizeStr != null ? Integer.parseInt(pageSizeStr) : 5;
-            int pageNumber = pageNumberStr != null ? Integer.parseInt(pageNumberStr) : 1;
-            
-            String sessionId = exchange.getRequest().getCookies().getFirst("SESSION_ID") != null ? 
-                    Objects.requireNonNull(exchange.getRequest().getCookies().getFirst("SESSION_ID")).getValue() : null;
+            CartAction cartAction;
+            try {
+                cartAction = CartAction.valueOf(finalAction);
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid action: {}", finalAction);
+                return Mono.just("redirect:/items");
+            }
+
             UUID sessionUuid = resolveSessionId(sessionId, exchange);
 
             String redirectUrl = String.format(
                     "redirect:/items?search=%s&sort=%s&pageSize=%d&pageNumber=%d#item-%d",
-                    search != null ? search : "", 
-                    sort != null ? sort : "NO", 
-                    pageSize, 
-                    pageNumber, 
-                    id
+                    finalSearch != null ? finalSearch : "",
+                    sort,
+                    pageSize,
+                    pageNumber,
+                    finalId
             );
 
-            return cartService.updateCartItem(sessionUuid, id, action)
+            return cartService.updateCartItem(sessionUuid, finalId, cartAction)
                     .thenReturn(redirectUrl);
         });
     }
@@ -156,6 +161,7 @@ public class ItemController extends BaseController{
         UUID sessionUuid = UUID.fromString(sessionId);
 
         return itemService.findByItemIdAndSessionId(id, sessionUuid)
+                .map(itemMapper::toDto)
                 .defaultIfEmpty(emptyItem())
                 .map(item -> Rendering.view("item")
                         .modelAttribute("item", item)
@@ -170,26 +176,22 @@ public class ItemController extends BaseController{
     @PostMapping("/{id:[0-9]+}")
     public Mono<String> updateItemCountOnPage(
             @PathVariable Long id,
+            @RequestParam(required = false) String action,
+            @CookieValue(name = "SESSION_ID", required = false) String sessionId,
             ServerWebExchange exchange
     ) {
-        return exchange.getFormData().flatMap(formData -> {
-            var queryParams = exchange.getRequest().getQueryParams();
-            String actionStr = getParam(formData, queryParams, "action");
+        log.debug("updateItemCountOnPage: id={}, action={}", id, action);
 
-            log.debug("updateItemCountOnPage: id={}, action={}", id, actionStr);
-            if (actionStr == null) {
-                log.warn("Missing required parameter: action for item id={}", id);
-                return Mono.just("redirect:/items/" + id);
-            }
+        if (action == null) {
+            log.warn("Missing required parameter: action for item id={}", id);
+            return Mono.just("redirect:/items/" + id);
+        }
 
-            CartAction action = CartAction.valueOf(actionStr);
-            String sessionId = exchange.getRequest().getCookies().getFirst("SESSION_ID") != null ? 
-                    Objects.requireNonNull(exchange.getRequest().getCookies().getFirst("SESSION_ID")).getValue() : null;
-            UUID sessionUuid = resolveSessionId(sessionId, exchange);
+        CartAction cartAction = CartAction.valueOf(action);
+        UUID sessionUuid = resolveSessionId(sessionId, exchange);
 
-            return cartService.updateCartItem(sessionUuid, id, action)
-                    .thenReturn("redirect:/items/" + id);
-        });
+        return cartService.updateCartItem(sessionUuid, id, cartAction)
+                .thenReturn("redirect:/items/" + id);
     }
 
 }

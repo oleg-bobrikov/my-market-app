@@ -4,14 +4,13 @@ import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import reactor.test.StepVerifier;
-import ru.yandex.practicum.mymarket.BaseIntegrationTest;
 import ru.yandex.practicum.mymarket.model.CartAction;
 import ru.yandex.practicum.mymarket.repository.CartRepository;
 import ru.yandex.practicum.mymarket.repository.OrderRepository;
 
 import java.util.UUID;
 
-public class OrderDtoIntegrationTest extends BaseIntegrationTest {
+public class OrderIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private CartRepository cartRepository;

@@ -1,4 +1,4 @@
-package ru.yandex.practicum.mymarket;
+package ru.yandex.practicum.mymarket.integration;
 
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;

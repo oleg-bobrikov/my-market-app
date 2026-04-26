@@ -5,6 +5,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
 import reactor.core.publisher.Mono;
+import ru.yandex.practicum.mymarket.mapper.ItemMapper;
 import ru.yandex.practicum.mymarket.service.OrderService;
 
 import java.util.Map;
@@ -14,6 +15,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class OrderController {
     private final OrderService orderService;
+    private final ItemMapper itemMapper;
 
     @PostMapping("/buy")
     public Mono<Rendering> buy(@CookieValue(value = "SESSION_ID", required = false) String sessionId) {
@@ -39,7 +41,7 @@ public class OrderController {
 
         return orderService.getOrderByIdAndSessionId(id, sessionUuid)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Order not found")))
-                .zipWhen(order -> orderService.getOrderItemsDto(id).collectList())
+                .zipWhen(order -> orderService.getOrderItems(id).map(itemMapper::toDto).collectList())
                 .map(tuple -> {
                     var order = tuple.getT1();
                     var items = tuple.getT2();
@@ -66,7 +68,8 @@ public class OrderController {
 
         return orderService.findBySessionId(sessionUuid)
                 .flatMap(order ->
-                        orderService.getOrderItemsDto(order.getId())
+                        orderService.getOrderItems(order.getId())
+                                .map(itemMapper::toDto)
                                 .collectList()
                                 .map(items -> Map.of(
                                         "id", order.getId(),

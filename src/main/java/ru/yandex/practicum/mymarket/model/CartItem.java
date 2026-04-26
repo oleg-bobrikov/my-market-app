@@ -2,7 +2,6 @@ package ru.yandex.practicum.mymarket.model;
 
 import lombok.*;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
@@ -15,5 +14,4 @@ public class CartItem {
     private UUID sessionId;
     private Long itemId;
     private Integer count;
-    private LocalDateTime createdAt;
 }

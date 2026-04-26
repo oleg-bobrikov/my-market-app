@@ -4,13 +4,12 @@ import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import reactor.test.StepVerifier;
-import ru.yandex.practicum.mymarket.BaseDataR2dbcTest;
 import ru.yandex.practicum.mymarket.entity.OrderEntity;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
-class OrderDtoRepositoryTest extends BaseDataR2dbcTest {
+class OrderRepositoryTest extends BaseDataR2dbcTest {
 
     @Autowired
     private OrderRepository orderRepository;

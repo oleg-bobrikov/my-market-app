@@ -3,7 +3,6 @@ package ru.yandex.practicum.mymarket.controller;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import reactor.core.publisher.Mono;
-import ru.yandex.practicum.mymarket.BaseWebFluxTest;
 
 import static org.mockito.Mockito.when;
 

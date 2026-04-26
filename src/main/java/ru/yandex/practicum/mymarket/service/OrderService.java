@@ -5,9 +5,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import ru.yandex.practicum.mymarket.dto.ItemDto;
 import ru.yandex.practicum.mymarket.mapper.ItemMapper;
 import ru.yandex.practicum.mymarket.mapper.OrderMapper;
+import ru.yandex.practicum.mymarket.model.Item;
 import ru.yandex.practicum.mymarket.model.Order;
 import ru.yandex.practicum.mymarket.model.OrderItem;
 import ru.yandex.practicum.mymarket.repository.CartRepository;
@@ -75,14 +75,14 @@ public class OrderService {
         return orderRepository.findByIdAndSessionId(id, sessionId).map(orderMapper::toModel);
     }
 
-    public Flux<ItemDto> getOrderItemsDto(Long orderId) {
+    public Flux<Item> getOrderItems(Long orderId) {
         return orderItemRepository.findByOrderId(orderId)
                 .flatMap(orderItem ->
                         itemRepository.findById(orderItem.getItemId())
                                 .map(item -> {
-                                    ItemDto dto = itemMapper.toDto(item);
-                                    dto.setCount(orderItem.getCount());
-                                    return dto;
+                                    Item model = itemMapper.toModel(item);
+                                    model.setCount(orderItem.getCount());
+                                    return model;
                                 })
                 );
     }

@@ -9,12 +9,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
-import ru.yandex.practicum.mymarket.dto.ItemDto;
 import ru.yandex.practicum.mymarket.entity.ItemEntity;
 import ru.yandex.practicum.mymarket.entity.OrderEntity;
 import ru.yandex.practicum.mymarket.entity.OrderItemEntity;
 import ru.yandex.practicum.mymarket.mapper.ItemMapper;
 import ru.yandex.practicum.mymarket.mapper.OrderMapper;
+import ru.yandex.practicum.mymarket.model.Item;
 import ru.yandex.practicum.mymarket.model.Order;
 import ru.yandex.practicum.mymarket.model.OrderItem;
 import ru.yandex.practicum.mymarket.repository.CartRepository;
@@ -29,7 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class OrderDtoServiceTest {
+class OrderServiceTest {
 
     @Mock
     private OrderRepository orderRepository;
@@ -98,7 +98,7 @@ class OrderDtoServiceTest {
     }
 
     @Test
-    void getOrderItemsDto_ShouldPopulateCount() {
+    void getOrderItems_ShouldPopulateCount() {
         Long orderId = 10L;
         Long itemId = 1L;
         int count = 5;
@@ -114,17 +114,17 @@ class OrderDtoServiceTest {
                 .price(new BigDecimal("10.00"))
                 .build();
 
-        ItemDto itemDto = new ItemDto();
-        itemDto.setId(itemId);
-        itemDto.setPrice(new BigDecimal("10.00"));
+        Item itemModel = new Item();
+        itemModel.setId(itemId);
+        itemModel.setPrice(new BigDecimal("10.00"));
 
         when(orderItemRepository.findByOrderId(orderId)).thenReturn(Flux.just(orderItemEntity));
         when(itemRepository.findById(itemId)).thenReturn(Mono.just(itemEntity));
-        when(itemMapper.toDto(itemEntity)).thenReturn(itemDto);
+        when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
 
-        orderService.getOrderItemsDto(orderId)
+        orderService.getOrderItems(orderId)
                 .as(StepVerifier::create)
-                .expectNextMatches(dto -> dto.getId().equals(itemId) && dto.getCount() == count)
+                .expectNextMatches(model -> model.getId().equals(itemId) && model.getCount() == count)
                 .verifyComplete();
     }
 

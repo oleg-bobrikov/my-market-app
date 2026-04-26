@@ -5,12 +5,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import ru.yandex.practicum.mymarket.dto.ItemDto;
 import ru.yandex.practicum.mymarket.entity.CartItemEntity;
 import ru.yandex.practicum.mymarket.mapper.CartItemMapper;
 import ru.yandex.practicum.mymarket.mapper.ItemMapper;
 import ru.yandex.practicum.mymarket.model.CartAction;
 import ru.yandex.practicum.mymarket.model.CartItem;
+import ru.yandex.practicum.mymarket.model.Item;
 import ru.yandex.practicum.mymarket.repository.CartRepository;
 import ru.yandex.practicum.mymarket.repository.ItemRepository;
 
@@ -77,20 +77,20 @@ public class CartService {
                 });
     }
 
-    public Flux<ItemDto> getCartItems(UUID sessionId) {
+    public Flux<Item> getCartItems(UUID sessionId) {
         return cartRepository.findBySessionId(sessionId)
                 .collectMap(CartItemEntity::getItemId, CartItemEntity::getCount)
                 .flatMapMany(cartCounts ->
                         itemRepository.findAllById(cartCounts.keySet())
                                 .map(item -> {
-                                    ItemDto dto = itemMapper.toDto(item);
-                                    dto.setCount(cartCounts.getOrDefault(item.getId(), 0));
-                                    return dto;
+                                    Item model = itemMapper.toModel(item);
+                                    model.setCount(cartCounts.getOrDefault(item.getId(), 0));
+                                    return model;
                                 })
                 );
     }
 
-    public Mono<BigDecimal> getTotalPrice(List<ItemDto> items) {
+    public Mono<BigDecimal> getTotalPrice(List<Item> items) {
         return Mono.fromSupplier(() ->
                 items.stream()
                         .map(item -> {

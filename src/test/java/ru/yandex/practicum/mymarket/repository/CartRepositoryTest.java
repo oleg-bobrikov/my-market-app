@@ -4,7 +4,6 @@ import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import reactor.test.StepVerifier;
-import ru.yandex.practicum.mymarket.BaseDataR2dbcTest;
 import ru.yandex.practicum.mymarket.entity.CartItemEntity;
 import ru.yandex.practicum.mymarket.entity.ItemEntity;
 
