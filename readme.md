@@ -1,6 +1,6 @@
 # 🛒 My Market App
 
-Веб-приложение «Витрина интернет-магазина», разработанное на **Spring Boot 3.4.5** с использованием реактивного стека технологий и принципов **Clean Architecture**.
+Веб-приложение «Витрина интернет-магазина», разработанное на **Spring Boot 3.5.14** с использованием реактивного стека технологий и принципов **Clean Architecture**.
 
 ## 📌 Описание проекта
 
@@ -17,7 +17,7 @@
 ## 🚀 Технологии
 
 * Java 21
-* Spring Boot 3.4.5
+* Spring Boot 3.5.14
 * Spring WebFlux (реактивный стек)
 * Spring Data R2DBC
 * Thymeleaf
@@ -140,14 +140,18 @@ docker run -p 8080:8080 my-market-app
 ### 🛠️ Обработка ошибок
 В приложении реализована централизованная обработка ошибок с помощью `GlobalErrorHandler`, которая корректно обрабатывает исключения валидации и некорректных запросов в реактивном стиле.
 
+## 🔍 Качество кода
+
+В проекте настроен **Qodana** для статического анализа кода. Конфигурация находится в файле `qodana.yaml`.
+
 ---
 
 ## 🧪 Тестирование
 
 Проект содержит:
 * Интеграционные тесты (`BaseIntegrationTest`).
-* Тесты сервисов (`CartServiceTest`, `ItemServiceTest`, `OrderDtoServiceTest`) с использованием моков.
-* Тесты репозиториев (`ItemRepositoryTest`, `CartRepositoryTest`, `OrderDtoRepositoryTest`) на реальной БД (H2 R2DBC).
+* Тесты сервисов (`CartServiceTest`, `ItemServiceTest`, `OrderServiceTest`) с использованием моков.
+* Тесты репозиториев (`ItemRepositoryTest`, `CartRepositoryTest`, `OrderRepositoryTest`) на реальной БД (H2 R2DBC).
 * Реактивные тесты контроллеров (`BaseWebFluxTest`).
 
 Запуск всех тестов:

@@ -13,13 +13,13 @@ RUN ./gradlew --no-daemon build -x test
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-ENV SERVER_PORT="8080"
-ENV SPRING_DATASOURCE_URL="jdbc:h2:file:./data/market;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
-ENV SPRING_DATASOURCE_USERNAME="sa"
-ENV SPRING_DATASOURCE_PASSWORD=""
+ENV SERVER_PORT=8080
+ENV SPRING_R2DBC_URL="r2dbc:h2:file:///app/data/market;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+ENV SPRING_R2DBC_USERNAME="sa"
+ENV SPRING_R2DBC_PASSWORD=""
 
-COPY --from=build /app/build/libs/*.jar app.jar
+COPY --from=build /app/build/libs/my-market-app-0.0.1-SNAPSHOT.jar app.jar
 
 EXPOSE ${SERVER_PORT}
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "java -jar app.jar --server.port=${SERVER_PORT}"]
