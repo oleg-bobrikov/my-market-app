@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
+import static ru.yandex.practicum.mymarket.filter.SessionWebFilter.SESSION_ATTRIBUTE;
+
 @Slf4j
 @Controller
 @RequestMapping({"/items", "/"})
@@ -47,11 +49,10 @@ public class ItemController extends BaseController {
             @RequestParam(required = false, defaultValue = "NO") SortType sort,
             @RequestParam(required = false, defaultValue = "5") int pageSize,
             @RequestParam(required = false, defaultValue = "1") int pageNumber,
-            @CookieValue(value = "SESSION_ID", required = false) String sessionId,
             ServerWebExchange exchange
     ) {
 
-        UUID sessionUuid = resolveSessionId(sessionId, exchange);
+        UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
 
         Sort sortOrder = switch (sort) {
             case ALPHA -> Sort.by("title").ascending();
@@ -105,7 +106,6 @@ public class ItemController extends BaseController {
             @RequestParam(required = false, defaultValue = "NO") String sort,
             @RequestParam(required = false, defaultValue = "5") Integer pageSize,
             @RequestParam(required = false, defaultValue = "1") Integer pageNumber,
-            @CookieValue(name = "SESSION_ID", required = false) String sessionId,
             ServerWebExchange exchange
     ) {
         return exchange.getFormData().flatMap(formData -> {
@@ -132,7 +132,7 @@ public class ItemController extends BaseController {
                 return Mono.just("redirect:/items");
             }
 
-            UUID sessionUuid = resolveSessionId(sessionId, exchange);
+            UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
 
             String redirectUrl = String.format(
                     "redirect:/items?search=%s&sort=%s&pageSize=%d&pageNumber=%d#item-%d",
@@ -151,14 +151,9 @@ public class ItemController extends BaseController {
     @GetMapping("/{id:[0-9]+}")
     public Mono<Rendering> getItem(
             @PathVariable Long id,
-            @CookieValue(value = "SESSION_ID", required = false) String sessionId
+            ServerWebExchange exchange
     ) {
-        if (sessionId == null) {
-            return Mono.just(
-                    Rendering.redirectTo("/items").build()
-            );
-        }
-        UUID sessionUuid = UUID.fromString(sessionId);
+        UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
 
         return itemService.findByItemIdAndSessionId(id, sessionUuid)
                 .map(itemMapper::toDto)
@@ -177,7 +172,6 @@ public class ItemController extends BaseController {
     public Mono<String> updateItemCountOnPage(
             @PathVariable Long id,
             @RequestParam(required = false) String action,
-            @CookieValue(name = "SESSION_ID", required = false) String sessionId,
             ServerWebExchange exchange
     ) {
         log.debug("updateItemCountOnPage: id={}, action={}", id, action);
@@ -188,7 +182,7 @@ public class ItemController extends BaseController {
         }
 
         CartAction cartAction = CartAction.valueOf(action);
-        UUID sessionUuid = resolveSessionId(sessionId, exchange);
+        UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
 
         return cartService.updateCartItem(sessionUuid, id, cartAction)
                 .thenReturn("redirect:/items/" + id);

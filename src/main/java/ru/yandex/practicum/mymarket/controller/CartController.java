@@ -7,12 +7,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
-import ru.yandex.practicum.mymarket.dto.ItemDto;
 import ru.yandex.practicum.mymarket.mapper.ItemMapper;
 import ru.yandex.practicum.mymarket.model.CartAction;
 import ru.yandex.practicum.mymarket.service.CartService;
 
 import java.util.UUID;
+
+import static ru.yandex.practicum.mymarket.filter.SessionWebFilter.SESSION_ATTRIBUTE;
 
 @Slf4j
 @Controller
@@ -29,10 +30,9 @@ public class CartController extends BaseController{
 
     @GetMapping("/items")
     public Mono<Rendering> getCartItems(
-            @CookieValue(value = "SESSION_ID", required = false) String sessionId,
             ServerWebExchange exchange) {
 
-        UUID sessionUuid = resolveSessionId(sessionId, exchange);
+        UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
 
         return cartService.getCartItems(sessionUuid)
                 .collectList()
@@ -61,7 +61,6 @@ public class CartController extends BaseController{
             String idStr = getParam(formData, queryParams, "id");
             String actionStr = getParam(formData, queryParams, "action");
 
-            log.debug("updateCartItem: id={}, action={}", idStr, actionStr);
             if (idStr == null || actionStr == null) {
                 log.warn("Missing required parameters: id={}, action={}", idStr, actionStr);
                 return Mono.just("redirect:/items");
@@ -69,10 +68,7 @@ public class CartController extends BaseController{
 
             Long id = Long.valueOf(idStr);
             CartAction action = CartAction.valueOf(actionStr);
-            
-            String sessionId = exchange.getRequest().getCookies().getFirst("SESSION_ID") != null ? 
-                    exchange.getRequest().getCookies().getFirst("SESSION_ID").getValue() : null;
-            UUID sessionUuid = resolveSessionId(sessionId, exchange);
+            UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
 
             return cartService.updateCartItem(sessionUuid, id, action)
                     .then(cartService.getCartItems(sessionUuid).collectList())
