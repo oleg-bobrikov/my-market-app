@@ -21,6 +21,13 @@ public interface ItemRepository extends ReactiveCrudRepository<ItemEntity, Long>
                 img_path,
                 price
             FROM items
+            ORDER BY
+                CASE
+                    WHEN :#{#pageable.sort.toString().contains('title: ASC')} THEN title
+                    WHEN :#{#pageable.sort.toString().contains('price: ASC')} THEN CAST(price AS VARCHAR)
+                    ELSE CAST(id AS VARCHAR)
+                END
+            LIMIT :#{#pageable.pageSize} OFFSET :#{#pageable.offset}
             """)
     Flux<ItemEntity> findAll(Pageable pageable);
 
@@ -33,6 +40,13 @@ public interface ItemRepository extends ReactiveCrudRepository<ItemEntity, Long>
                  price
              FROM items
              WHERE title ILIKE :pattern OR description ILIKE :pattern
+             ORDER BY
+                CASE
+                    WHEN :#{#pageable.sort.toString().contains('title: ASC')} THEN title
+                    WHEN :#{#pageable.sort.toString().contains('price: ASC')} THEN price
+                    ELSE id
+                END
+            LIMIT :#{#pageable.pageSize} OFFSET :#{#pageable.offset}
             """)
     Flux<ItemEntity> searchByTitleOrDescription(String pattern, Pageable pageable);
 

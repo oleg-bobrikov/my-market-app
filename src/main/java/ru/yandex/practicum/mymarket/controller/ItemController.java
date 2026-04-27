@@ -66,7 +66,7 @@ public class ItemController extends BaseController {
                 .map(itemMapper::toDto)
                 .collectList()
                 .map(content -> {
-                    int chunkSize = 5;
+                    int chunkSize = pageSize;
                     List<List<ItemDto>> items = IntStream
                             .range(0, (content.size() + chunkSize - 1) / chunkSize)
                             .mapToObj(i -> {
