@@ -1,58 +1,14 @@
 plugins {
     java
-    id("org.springframework.boot") version "3.5.14"
-    id("io.spring.dependency-management") version "1.1.7"
+    id("org.springframework.boot") version "3.5.14" apply false
+    id("io.spring.dependency-management") version "1.1.7" apply false
 }
 
-group = "ru.yandex.practicum"
-version = "0.0.1-SNAPSHOT"
+allprojects {
+    group = "ru.yandex.practicum"
+    version = "0.0.1-SNAPSHOT"
 
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+    repositories {
+        mavenCentral()
     }
-}
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    annotationProcessor("org.projectlombok:lombok")
-    compileOnly("org.projectlombok:lombok")
-
-    implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
-    implementation("org.springframework.boot:spring-boot-starter-webflux")
-    implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
-
-
-    implementation("com.github.f4b6a3:uuid-creator:5.3.7")
-    implementation("org.mapstruct:mapstruct:1.5.5.Final")
-    annotationProcessor("org.mapstruct:mapstruct-processor:1.5.5.Final")
-
-    runtimeOnly("com.h2database:h2")
-    runtimeOnly("io.r2dbc:r2dbc-h2")
-    runtimeOnly("org.postgresql:postgresql")
-    runtimeOnly("org.postgresql:r2dbc-postgresql")
-
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("io.projectreactor:reactor-test")
-    testImplementation("org.mockito:mockito-core:5.11.0")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
-
-/**
- * Мы создаём свою конфигурацию mockitoAgent.
- * В ней будут лежать только jar-файлы, которые нужны для javaagent.
- * Это нужно, чтобы не смешивать agent-зависимости с обычным кодом.
- */
-val mockitoAgent by configurations.creating
-
-dependencies {
-    mockitoAgent("net.bytebuddy:byte-buddy-agent:1.17.8")
-}
-
-tasks.withType<Test> {
-    useJUnitPlatform()
-    jvmArgs("-XX:+EnableDynamicAgentLoading", "-Xshare:off", "-javaagent:${mockitoAgent.asPath}")
 }

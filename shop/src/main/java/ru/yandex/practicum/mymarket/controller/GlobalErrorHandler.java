@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.support.WebExchangeBindException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebInputException;
 
 @Slf4j
@@ -32,6 +33,14 @@ public class GlobalErrorHandler {
         return ResponseEntity
                 .badRequest()
                 .body(details);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<String> handleResponseStatusException(ResponseStatusException ex) {
+        log.error("Response status error: {}", ex.getMessage());
+        return ResponseEntity
+                .status(ex.getStatusCode())
+                .body(ex.getReason());
     }
 
     @ExceptionHandler(Exception.class)
