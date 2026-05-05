@@ -6,21 +6,24 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import ru.yandex.practicum.mymarket.dto.ItemDto;
+import org.springframework.data.domain.Sort;
+import reactor.core.publisher.Flux;
+import reactor.test.StepVerifier;
+import ru.yandex.practicum.mymarket.entity.CartItemEntity;
+import ru.yandex.practicum.mymarket.entity.ItemEntity;
 import ru.yandex.practicum.mymarket.mapper.ItemMapper;
-import ru.yandex.practicum.mymarket.model.CartItem;
 import ru.yandex.practicum.mymarket.model.Item;
 import ru.yandex.practicum.mymarket.repository.CartRepository;
 import ru.yandex.practicum.mymarket.repository.ItemRepository;
 
-import java.util.List;
+import java.math.BigDecimal;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,24 +47,69 @@ class ItemServiceTest {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Pageable pageable = PageRequest.of(0, 10);
         
-        Item item = new Item();
-        item.setId(1L);
+        ItemEntity itemEntity = ItemEntity.builder().id(1L).build();
         
-        ItemDto itemDto = new ItemDto();
-        itemDto.setId(1L);
+        Item itemModel = new Item();
+        itemModel.setId(1L);
         
-        CartItem cartItem = CartItem.builder()
-                .item(item)
+        CartItemEntity cartItemEntity = CartItemEntity.builder()
+                .itemId(1L)
                 .count(5)
                 .build();
 
-        when(itemRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(item)));
-        when(cartRepository.findBySessionId(sessionId)).thenReturn(List.of(cartItem));
-        when(itemMapper.toDto(item)).thenReturn(itemDto);
+        when(itemRepository.findAll(pageable)).thenReturn(Flux.just(itemEntity));
+        when(cartRepository.findBySessionId(sessionId)).thenReturn(Flux.just(cartItemEntity));
+        when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
 
-        Page<ItemDto> result = itemService.getItems(search, sessionId.toString(), pageable);
+        itemService.getItems(search, sessionId, pageable)
+                .as(StepVerifier::create)
+                .expectNextMatches(result -> result.getId().equals(1L) && result.getCount() == 5)
+                .verifyComplete();
+    }
 
-        assertEquals(1, result.getContent().size());
-        assertEquals(5, result.getContent().getFirst().getCount());
+    @Test
+    void getItems_WithSearchAndSortByPrice() {
+        String search = "phone";
+        UUID sessionId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10, Sort.by("price"));
+
+        ItemEntity itemEntity = ItemEntity.builder().id(1L).price(BigDecimal.valueOf(100)).build();
+        Item itemModel = new Item();
+        itemModel.setId(1L);
+
+        when(itemRepository.searchByTitleOrDescription(eq("%phone%"), eq(pageable)))
+                .thenReturn(Flux.just(itemEntity));
+        when(cartRepository.findBySessionId(sessionId)).thenReturn(Flux.empty());
+        when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
+
+        itemService.getItems(search, sessionId, pageable)
+                .as(StepVerifier::create)
+                .expectNextCount(1)
+                .verifyComplete();
+
+        verify(itemRepository).searchByTitleOrDescription(eq("%phone%"), eq(pageable));
+    }
+
+    @Test
+    void getItems_WithSearchAndSortByTitle() {
+        String search = "phone";
+        UUID sessionId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10, Sort.by("title"));
+
+        ItemEntity itemEntity = ItemEntity.builder().id(1L).title("iPhone").build();
+        Item itemModel = new Item();
+        itemModel.setId(1L);
+
+        when(itemRepository.searchByTitleOrDescription(eq("%phone%"), eq(pageable)))
+                .thenReturn(Flux.just(itemEntity));
+        when(cartRepository.findBySessionId(sessionId)).thenReturn(Flux.empty());
+        when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
+
+        itemService.getItems(search, sessionId, pageable)
+                .as(StepVerifier::create)
+                .expectNextCount(1)
+                .verifyComplete();
+
+        verify(itemRepository).searchByTitleOrDescription(eq("%phone%"), eq(pageable));
     }
 }

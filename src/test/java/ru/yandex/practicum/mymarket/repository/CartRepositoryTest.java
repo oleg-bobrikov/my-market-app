@@ -3,18 +3,15 @@ package ru.yandex.practicum.mymarket.repository;
 import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import ru.yandex.practicum.mymarket.BaseDataJpaTest;
-import ru.yandex.practicum.mymarket.model.CartItem;
-import ru.yandex.practicum.mymarket.model.Item;
+import reactor.test.StepVerifier;
+import ru.yandex.practicum.mymarket.entity.CartItemEntity;
+import ru.yandex.practicum.mymarket.entity.ItemEntity;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-class CartRepositoryTest extends BaseDataJpaTest {
+class CartRepositoryTest extends BaseDataR2dbcTest {
 
     @Autowired
     private CartRepository cartRepository;
@@ -24,35 +21,46 @@ class CartRepositoryTest extends BaseDataJpaTest {
 
     @Test
     void findBySessionIdAndItemId_shouldFindCorrectItem() {
-        Item item = itemRepository.save(new Item(null, "Item 1", "Desc", "path", BigDecimal.TEN));
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        CartItem cartItem = CartItem.builder()
-                .sessionId(sessionId)
-                .item(item)
-                .count(2)
+        ItemEntity item = ItemEntity.builder()
+                .title("Item 1")
+                .description("Desc")
+                .imgPath("path")
+                .price(BigDecimal.TEN)
                 .build();
-        cartRepository.save(cartItem);
+        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
 
-        Optional<CartItem> found = cartRepository.findBySessionIdAndItemId(sessionId, item.getId());
-
-        assertThat(found).isPresent();
-        assertThat(found.get().getCount()).isEqualTo(2);
-        assertThat(found.get().getItem().getTitle()).isEqualTo("Item 1");
+        itemRepository.save(item)
+                .flatMap(savedItem -> {
+                    CartItemEntity cartItem = CartItemEntity.builder()
+                            .sessionId(sessionId)
+                            .itemId(savedItem.getId())
+                            .count(2)
+                            .build();
+                    return cartRepository.save(cartItem).thenReturn(savedItem);
+                })
+                .flatMap(savedItem -> cartRepository.findBySessionIdAndItemId(sessionId, savedItem.getId()))
+                .as(StepVerifier::create)
+                .expectNextMatches(found -> found.getCount() == 2)
+                .verifyComplete();
     }
 
     @Test
     void findBySessionId_shouldReturnAllItemsForSession() {
-        Item item1 = itemRepository.save(new Item(null, "Item 1", "Desc", "path", BigDecimal.TEN));
-        Item item2 = itemRepository.save(new Item(null, "Item 2", "Desc", "path", BigDecimal.ONE));
+        ItemEntity item1 = ItemEntity.builder().title("Item 1").description("Desc").imgPath("path").price(BigDecimal.TEN).build();
+        ItemEntity item2 = ItemEntity.builder().title("Item 2").description("Desc").imgPath("path").price(BigDecimal.ONE).build();
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
 
-        cartRepository.save(CartItem.builder().sessionId(sessionId).item(item1).count(1).build());
-        cartRepository.save(CartItem.builder().sessionId(sessionId).item(item2).count(3).build());
-        cartRepository.save(CartItem.builder().sessionId(UuidCreator.getTimeOrderedEpoch()).item(item1).count(5).build());
-
-        List<CartItem> results = cartRepository.findBySessionId(sessionId);
-
-        assertThat(results).hasSize(2);
-        assertThat(results).extracting(ci -> ci.getItem().getTitle()).containsExactlyInAnyOrder("Item 1", "Item 2");
+        itemRepository.saveAll(List.of(item1, item2))
+                .collectList()
+                .flatMapMany(savedItems -> {
+                    CartItemEntity ci1 = CartItemEntity.builder().sessionId(sessionId).itemId(savedItems.get(0).getId()).count(1).build();
+                    CartItemEntity ci2 = CartItemEntity.builder().sessionId(sessionId).itemId(savedItems.get(1).getId()).count(3).build();
+                    CartItemEntity ci3 = CartItemEntity.builder().sessionId(UuidCreator.getTimeOrderedEpoch()).itemId(savedItems.get(0).getId()).count(5).build();
+                    return cartRepository.saveAll(List.of(ci1, ci2, ci3));
+                })
+                .thenMany(cartRepository.findBySessionId(sessionId))
+                .as(StepVerifier::create)
+                .expectNextCount(2)
+                .verifyComplete();
     }
 }

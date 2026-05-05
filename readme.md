@@ -1,6 +1,6 @@
 # 🛒 My Market App
 
-Веб-приложение «Витрина интернет-магазина», разработанное на **Spring Boot 4.0.5** с использованием блокирующего стека технологий.
+Веб-приложение «Витрина интернет-магазина», разработанное на **Spring Boot 3.5.14** с использованием реактивного стека технологий и принципов **Clean Architecture**.
 
 ## 📌 Описание проекта
 
@@ -10,42 +10,55 @@
 * Добавление товаров в корзину (с использованием `SESSION_ID` в куках).
 * Оформление заказов и просмотр истории заказов.
 
-Проект реализован на **Spring Web MVC**, **Spring Data JPA** и **Thymeleaf**.
+Проект реализован на **Spring WebFlux**, **Spring Data R2DBC** и **Thymeleaf**.
 
 ---
 
 ## 🚀 Технологии
 
 * Java 21
-* Spring Boot 4.0.5
-* Spring Web MVC
-* Spring Data JPA
-* Hibernate ORM
+* Spring Boot 3.5.14
+* Spring WebFlux (реактивный стек)
+* Spring Data R2DBC
 * Thymeleaf
 * Gradle (Kotlin DSL)
-* H2 / PostgreSQL
-* JUnit 5 / AssertJ
+* H2 / PostgreSQL (R2DBC драйверы)
+* JUnit 5 / AssertJ / Reactor Test
 * MapStruct
 * Lombok
 
 ---
 
-## 📂 Структура проекта
+## 📂 Структура проекта (Clean Architecture)
+
+Проект организован в соответствии с принципами чистой архитектуры:
+
+* **`ru.yandex.practicum.mymarket.model` (Domain/Entities):** Чистые бизнес-объекты (POJO), не зависящие от фреймворков.
+* **`ru.yandex.practicum.mymarket.service` (Use Cases):** Бизнес-логика приложения.
+* **`ru.yandex.practicum.mymarket.entity` (Infrastructure):** Сущности базы данных с аннотациями Spring Data R2DBC.
+* **`ru.yandex.practicum.mymarket.repository` (Infrastructure):** Реактивные репозитории для доступа к БД.
+* **`ru.yandex.practicum.mymarket.controller` (Interface Adapters):** REST-контроллеры, обрабатывающие HTTP-запросы.
+* **`ru.yandex.practicum.mymarket.mapper` (Interface Adapters):** Мапперы для преобразования между Entity, Model и DTO.
 
 ```text
 my-market-app/
 ├── build.gradle.kts        # Конфигурация Gradle
-├── gradlew                 # Скрипт запуска Gradle (Unix)
-├── gradlew.bat             # Скрипт запуска Gradle (Windows)
 ├── src/
 │   ├── main/
-│   │   ├── java/...        # Исходный код (ru.yandex.practicum.mymarket)
+│   │   ├── java/
+│   │   │   └── ru.yandex.practicum.mymarket/
+│   │   │       ├── controller/  # Веб-слой
+│   │   │       ├── entity/      # Слой БД (Infrastructure)
+│   │   │       ├── model/       # Доменный слой (Domain)
+│   │   │       ├── service/     # Слой логики (Use Cases)
+│   │   │       ├── mapper/      # Преобразование данных
+│   │   │       └── repository/  # Доступ к данным
 │   │   └── resources/
-│   │       ├── static/     # Статические ресурсы (изображения)
-│   │       ├── templates/  # Шаблоны Thymeleaf (HTML)
-│   │       ├── data.sql    # Начальные данные для БД
-│   │       └── application.properties
-│   └── test/               # Тесты (Integration, WebMvc)
+│   │       ├── static/          # Изображения товаров
+│   │       ├── templates/       # Шаблоны Thymeleaf (реактивные)
+│   │       ├── schema.sql       # Определение таблиц БД
+│   │       └── data.sql         # Начальные данные
+│   └── test/                    # Тесты (Unit, Integration, R2DBC)
 ```
 
 ---
@@ -120,19 +133,26 @@ docker run -p 8080:8080 my-market-app
 | Переменная | Описание | Значение по умолчанию |
 |------------|----------|-----------------------|
 | `SERVER_PORT` | Порт приложения | `8080` |
-| `SPRING_DATASOURCE_URL` | URL подключения к БД | `jdbc:h2:file:./data/market;...` |
-| `SPRING_DATASOURCE_USERNAME` | Пользователь БД | `sa` |
-| `SPRING_DATASOURCE_PASSWORD` | Пароль БД | (пусто) |
+| `SPRING_R2DBC_URL` | URL подключения к БД (R2DBC) | `r2dbc:postgresql://localhost:5432/market` |
+| `SPRING_R2DBC_USERNAME` | Пользователь БД | `pgsql` |
+| `SPRING_R2DBC_PASSWORD` | Пароль БД | `pgsql` |
+
+### 🛠️ Обработка ошибок
+В приложении реализована централизованная обработка ошибок с помощью `GlobalErrorHandler`, которая корректно обрабатывает исключения валидации и некорректных запросов в реактивном стиле.
+
+## 🔍 Качество кода
+
+В проекте настроен **Qodana** для статического анализа кода. Конфигурация находится в файле `qodana.yaml`.
 
 ---
-
 
 ## 🧪 Тестирование
 
 Проект содержит:
-* Интеграционные тесты (`CartIntegrationTest`, `OrderIntegrationTest`).
-* Тесты контроллеров и редиректов.
-* Тесты логики сортировки и отображения.
+* Интеграционные тесты (`BaseIntegrationTest`).
+* Тесты сервисов (`CartServiceTest`, `ItemServiceTest`, `OrderServiceTest`) с использованием моков.
+* Тесты репозиториев (`ItemRepositoryTest`, `CartRepositoryTest`, `OrderRepositoryTest`) на реальной БД (H2 R2DBC).
+* Реактивные тесты контроллеров (`BaseWebFluxTest`).
 
 Запуск всех тестов:
 ```bash
@@ -143,10 +163,16 @@ docker run -p 8080:8080 my-market-app
 
 ## 🗄️ Модель данных
 
-### Основные сущности:
-* **Item (Товар):** id, title, description, price, imgPath.
-* **CartItem (Элемент корзины):** id, sessionId, item, count.
-* **Order (Заказ):** id, sessionId, items (OrderItem), total.
-* **OrderItem (Элемент заказа):** id, order, item, count.
+### Доменные модели (Domain Layer):
+* **Item:** id, title, description, price, imgPath.
+* **CartItem:** id, sessionId, item, count.
+* **Order:** id, sessionId, items, total.
+* **OrderItem:** item, count.
+
+### Сущности БД (Infrastructure Layer):
+* **ItemEntity:** соответствует таблице `items`.
+* **CartItemEntity:** соответствует таблице `cart_items`.
+* **OrderEntity:** соответствует таблице `orders`.
+* **OrderItemEntity:** соответствует таблице `order_items`.
 
 ---

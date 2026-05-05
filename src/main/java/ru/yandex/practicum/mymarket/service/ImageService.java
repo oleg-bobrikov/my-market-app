@@ -1,6 +1,6 @@
 package ru.yandex.practicum.mymarket.service;
 
-import java.util.Optional;
+import reactor.core.publisher.Mono;
 
 public interface ImageService {
     /**
@@ -9,7 +9,7 @@ public interface ImageService {
      * @param imageName имя файла изображения (например, "1.jpg")
      * @return массив байтов изображения, если оно найдено
      */
-    Optional<byte[]> getImage(String imageName);
+    Mono<byte[]> getImage(String imageName);
 
     /**
      * Формирует URL для получения изображения.

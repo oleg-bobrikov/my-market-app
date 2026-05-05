@@ -2,33 +2,30 @@ package ru.yandex.practicum.mymarket.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
-import ru.yandex.practicum.mymarket.BaseWebMvcTest;
-
-import java.util.Optional;
+import reactor.core.publisher.Mono;
 
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-public class ImageControllerTest extends BaseWebMvcTest {
+public class ImageControllerTest extends BaseWebFluxTest {
 
     @Test
-    public void testGetImageSuccess() throws Exception {
+    public void testGetImageSuccess() {
         byte[] imageBytes = new byte[]{1, 2, 3};
-        when(imageService.getImage("1.jpg")).thenReturn(Optional.of(imageBytes));
+        when(imageService.getImage("1.jpg")).thenReturn(Mono.just(imageBytes));
 
-        mockMvc.perform(get("/api/images/1.jpg"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.IMAGE_JPEG_VALUE))
-                .andExpect(content().bytes(imageBytes));
+        webTestClient.get().uri("/api/images/1.jpg")
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentType(MediaType.IMAGE_JPEG_VALUE)
+                .expectBody(byte[].class).isEqualTo(imageBytes);
     }
 
     @Test
-    public void testGetImageNotFound() throws Exception {
-        when(imageService.getImage("non_existent.jpg")).thenReturn(Optional.empty());
+    public void testGetImageNotFound() {
+        when(imageService.getImage("non_existent.jpg")).thenReturn(Mono.empty());
 
-        mockMvc.perform(get("/api/images/non_existent.jpg"))
-                .andExpect(status().isNotFound());
+        webTestClient.get().uri("/api/images/non_existent.jpg")
+                .exchange()
+                .expectStatus().isNotFound();
     }
 }

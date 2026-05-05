@@ -7,7 +7,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Mono;
 import ru.yandex.practicum.mymarket.service.ImageService;
+
+import java.io.FileNotFoundException;
 
 @RestController
 @RequestMapping("/api/images")
@@ -21,9 +24,12 @@ public class ImageController {
     }
 
     @GetMapping(value = "/{imageName}", produces = MediaType.IMAGE_JPEG_VALUE)
-    public ResponseEntity<byte[]> getImage(@PathVariable String imageName) {
+    public Mono<ResponseEntity<byte[]>> getImage(@PathVariable String imageName) {
         return imageService.getImage(imageName)
                 .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .defaultIfEmpty(ResponseEntity.notFound().build())
+                .onErrorResume(FileNotFoundException.class,
+                        e -> Mono.just(ResponseEntity.notFound().build())
+                );
     }
 }

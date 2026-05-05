@@ -1,49 +1,62 @@
 package ru.yandex.practicum.mymarket.controller;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.Page;
-import ru.yandex.practicum.mymarket.BaseWebMvcTest;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-public class ItemControllerTest extends BaseWebMvcTest {
+public class ItemControllerTest extends BaseWebFluxTest {
 
     @Test
-    public void testSortSelectionPersists() throws Exception {
-        verifyNoInteractions(cartService);
-        when(itemService.getItems(anyString(), anyString(), any())).thenReturn(Page.empty());
+    public void testSortSelectionPersists() {
+        when(itemService.getItems(anyString(), any(), any())).thenReturn(Flux.empty());
 
-        mockMvc.perform(get("/items").param("sort", "ALPHA"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("<option value=\"ALPHA\" selected=\"selected\">по алфавиту</option>")));
+        webTestClient.get().uri("/items?sort=ALPHA")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class).consumeWith(result -> {
+                    String body = result.getResponseBody();
+                    assert body != null && body.contains("<option value=\"ALPHA\" selected=\"selected\">по алфавиту</option>");
+                });
 
-        mockMvc.perform(get("/items").param("sort", "PRICE"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("<option value=\"PRICE\" selected=\"selected\">по цене</option>")));
+        webTestClient.get().uri("/items?sort=PRICE")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class).consumeWith(result -> {
+                    String body = result.getResponseBody();
+                    assert body != null && body.contains("<option value=\"PRICE\" selected=\"selected\">по цене</option>");
+                });
     }
 
     @Test
-    public void testUpdateItemCountPreservesSort() throws Exception {
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/items")
-                        .param("id", "1")
-                        .param("action", "PLUS")
-                        .param("sort", "PRICE"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items?search=&sort=PRICE&pageSize=5&pageNumber=1#item-1"));
+    public void testUpdateItemCountPreservesSort() {
+        when(cartService.updateCartItem(any(), any(), any())).thenReturn(Mono.empty());
+
+        webTestClient.post().uri(uriBuilder -> uriBuilder.path("/items")
+                        .queryParam("id", "1")
+                        .queryParam("action", "PLUS")
+                        .queryParam("sort", "PRICE")
+                        .build())
+                .cookie("SESSION_ID", "00000000-0000-0000-0000-000000000001")
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/items?search=&sort=PRICE&pageSize=5&pageNumber=1#item-1");
     }
 
     @Test
-    public void testRootPathReturnsItems() throws Exception {
-        when(itemService.getItems(anyString(), anyString(), any())).thenReturn(Page.empty());
+    public void testUpdateItemCountOnPageWithFormData() {
+        when(cartService.updateCartItem(any(), any(), any())).thenReturn(Mono.empty());
 
-        mockMvc.perform(get("/"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Витрина магазина")));
+        webTestClient.post().uri("/items/1")
+                .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
+                .body(org.springframework.web.reactive.function.BodyInserters.fromFormData("action", "PLUS"))
+                .cookie("SESSION_ID", "00000000-0000-0000-0000-000000000001")
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/items/1");
     }
 }

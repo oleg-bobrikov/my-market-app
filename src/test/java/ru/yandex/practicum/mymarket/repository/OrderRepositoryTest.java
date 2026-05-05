@@ -3,28 +3,64 @@ package ru.yandex.practicum.mymarket.repository;
 import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import ru.yandex.practicum.mymarket.BaseDataJpaTest;
-import ru.yandex.practicum.mymarket.model.Order;
+import reactor.test.StepVerifier;
+import ru.yandex.practicum.mymarket.entity.OrderEntity;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-class OrderRepositoryTest extends BaseDataJpaTest {
+class OrderRepositoryTest extends BaseDataR2dbcTest {
 
     @Autowired
     private OrderRepository orderRepository;
 
     @Test
     void save_shouldPersistOrder() {
-        Order order = Order.builder()
-                .sessionId(UuidCreator.getTimeOrderedEpoch())
-                .total(1000L)
+        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        OrderEntity order = OrderEntity.builder()
+                .sessionId(sessionId)
+                .total(BigDecimal.valueOf(1000))
                 .build();
 
-        Order savedOrder = orderRepository.save(order);
+        orderRepository.save(order)
+                .as(StepVerifier::create)
+                .expectNextMatches(savedOrder -> {
+                    return savedOrder.getId() != null &&
+                            savedOrder.getSessionId().equals(sessionId) &&
+                            savedOrder.getTotal().compareTo(BigDecimal.valueOf(1000)) == 0;
+                })
+                .verifyComplete();
+    }
 
-        assertThat(savedOrder.getId()).isNotNull();
-        assertThat(orderRepository.findById(savedOrder.getId())).isPresent();
+    @Test
+    void findByIdAndSessionId_shouldReturnOrder() {
+        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        OrderEntity order = OrderEntity.builder()
+                .sessionId(sessionId)
+                .total(BigDecimal.valueOf(1000))
+                .build();
+
+        OrderEntity saved = orderRepository.save(order).block();
+
+        orderRepository.findByIdAndSessionId(saved.getId(), sessionId)
+                .as(StepVerifier::create)
+                .expectNextMatches(found -> found.getId().equals(saved.getId()) && found.getSessionId().equals(sessionId))
+                .verifyComplete();
+    }
+
+    @Test
+    void findByIdAndSessionId_shouldReturnEmpty_whenSessionIdMismatch() {
+        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        UUID otherSessionId = UuidCreator.getTimeOrderedEpoch();
+        OrderEntity order = OrderEntity.builder()
+                .sessionId(sessionId)
+                .total(BigDecimal.valueOf(1000))
+                .build();
+
+        OrderEntity saved = orderRepository.save(order).block();
+
+        orderRepository.findByIdAndSessionId(saved.getId(), otherSessionId)
+                .as(StepVerifier::create)
+                .verifyComplete();
     }
 }

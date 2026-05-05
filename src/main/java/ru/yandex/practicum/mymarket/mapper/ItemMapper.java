@@ -5,6 +5,7 @@ import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 import org.springframework.beans.factory.annotation.Autowired;
 import ru.yandex.practicum.mymarket.dto.ItemDto;
+import ru.yandex.practicum.mymarket.entity.ItemEntity;
 import ru.yandex.practicum.mymarket.model.Item;
 import ru.yandex.practicum.mymarket.service.ImageService;
 
@@ -17,9 +18,10 @@ public abstract class ItemMapper {
         this.imageService = imageService;
     }
 
-    @Mapping(target = "count", constant = "0")
     @Mapping(target = "imgPath", qualifiedByName = "mapImage")
     public abstract ItemDto toDto(Item item);
+
+    public abstract Item toModel(ItemEntity entity);
 
     @Named("mapImage")
     protected String mapImage(String path) {

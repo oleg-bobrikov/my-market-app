@@ -6,18 +6,25 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import ru.yandex.practicum.mymarket.model.CartItem;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
+import ru.yandex.practicum.mymarket.entity.ItemEntity;
+import ru.yandex.practicum.mymarket.entity.OrderEntity;
+import ru.yandex.practicum.mymarket.entity.OrderItemEntity;
+import ru.yandex.practicum.mymarket.mapper.ItemMapper;
+import ru.yandex.practicum.mymarket.mapper.OrderMapper;
 import ru.yandex.practicum.mymarket.model.Item;
 import ru.yandex.practicum.mymarket.model.Order;
+import ru.yandex.practicum.mymarket.model.OrderItem;
 import ru.yandex.practicum.mymarket.repository.CartRepository;
+import ru.yandex.practicum.mymarket.repository.ItemRepository;
+import ru.yandex.practicum.mymarket.repository.OrderItemRepository;
 import ru.yandex.practicum.mymarket.repository.OrderRepository;
 
 import java.math.BigDecimal;
-import java.util.Collections;
-import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -30,41 +37,112 @@ class OrderServiceTest {
     @Mock
     private CartRepository cartRepository;
 
+    @Mock
+    private ItemRepository itemRepository;
+
+    @Mock
+    private OrderItemRepository orderItemRepository;
+
+    @Mock
+    private ItemMapper itemMapper;
+
+    @Mock
+    private OrderMapper orderMapper;
+
     @InjectMocks
     private OrderService orderService;
 
     @Test
     void createOrder_Success() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        Item item = new Item();
-        item.setId(1L);
-        item.setPrice(new BigDecimal("100.00"));
-        
-        CartItem cartItem = CartItem.builder()
-                .item(item)
+        ItemEntity itemEntity = ItemEntity.builder()
+                .id(1L)
+                .price(new BigDecimal("100.00"))
                 .count(2)
                 .build();
         
-        when(cartRepository.findBySessionId(sessionId)).thenReturn(List.of(cartItem));
-        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
-            Order o = invocation.getArgument(0);
-            o.setId(10L);
-            return o;
-        });
+        Order model = Order.builder().sessionId(sessionId).total(new BigDecimal("200.00")).build();
+        OrderEntity entity = OrderEntity.builder().sessionId(sessionId).total(new BigDecimal("200.00")).build();
+        Order savedModel = Order.builder().id(10L).sessionId(sessionId).total(new BigDecimal("200.00")).build();
+        OrderEntity savedEntity = OrderEntity.builder().id(10L).sessionId(sessionId).total(new BigDecimal("200.00")).build();
 
-        Long orderId = orderService.createOrder(sessionId);
+        when(itemRepository.findBySessionId(sessionId)).thenReturn(Flux.just(itemEntity));
+        when(orderMapper.toEntity(any(Order.class))).thenReturn(entity);
+        when(orderRepository.save(any(OrderEntity.class))).thenReturn(Mono.just(savedEntity));
+        when(orderMapper.toModel(savedEntity)).thenReturn(savedModel);
+        when(orderMapper.toEntity(any(OrderItem.class))).thenReturn(new OrderItemEntity());
+        when(orderItemRepository.saveAll(any(Flux.class))).thenReturn(Flux.empty());
+        when(cartRepository.deleteBySessionId(sessionId)).thenReturn(Mono.empty());
 
-        assertEquals(10L, orderId);
-        verify(orderRepository).save(any(Order.class));
-        verify(cartRepository).deleteAll(anyList());
+        orderService.createOrder(sessionId)
+                .as(StepVerifier::create)
+                .expectNextMatches(order -> order.getId().equals(10L) && order.getTotal().compareTo(new BigDecimal("200.00")) == 0)
+                .verifyComplete();
+
+        verify(orderRepository).save(any(OrderEntity.class));
+        verify(orderItemRepository).saveAll(any(Flux.class));
+        verify(cartRepository).deleteBySessionId(sessionId);
     }
 
     @Test
     void createOrder_ThrowsException_WhenCartIsEmpty() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        when(cartRepository.findBySessionId(sessionId)).thenReturn(Collections.emptyList());
+        when(itemRepository.findBySessionId(sessionId)).thenReturn(Flux.empty());
 
-        assertThrows(IllegalStateException.class, () -> orderService.createOrder(sessionId));
+        orderService.createOrder(sessionId)
+                .as(StepVerifier::create)
+                .expectError(IllegalStateException.class)
+                .verify();
+
         verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void getOrderItems_ShouldPopulateCount() {
+        Long orderId = 10L;
+        Long itemId = 1L;
+        int count = 5;
+
+        OrderItemEntity orderItemEntity = OrderItemEntity.builder()
+                .orderId(orderId)
+                .itemId(itemId)
+                .count(count)
+                .build();
+
+        ItemEntity itemEntity = ItemEntity.builder()
+                .id(itemId)
+                .price(new BigDecimal("10.00"))
+                .build();
+
+        Item itemModel = new Item();
+        itemModel.setId(itemId);
+        itemModel.setPrice(new BigDecimal("10.00"));
+
+        when(orderItemRepository.findByOrderId(orderId)).thenReturn(Flux.just(orderItemEntity));
+        when(itemRepository.findById(itemId)).thenReturn(Mono.just(itemEntity));
+        when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
+
+        orderService.getOrderItems(orderId)
+                .as(StepVerifier::create)
+                .expectNextMatches(model -> model.getId().equals(itemId) && model.getCount() == count)
+                .verifyComplete();
+    }
+
+    @Test
+    void getOrderByIdAndSessionId_Success() {
+        Long orderId = 1L;
+        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        OrderEntity entity = OrderEntity.builder().id(orderId).sessionId(sessionId).build();
+        Order model = Order.builder().id(orderId).sessionId(sessionId).build();
+
+        when(orderRepository.findByIdAndSessionId(orderId, sessionId)).thenReturn(Mono.just(entity));
+        when(orderMapper.toModel(entity)).thenReturn(model);
+
+        orderService.getOrderByIdAndSessionId(orderId, sessionId)
+                .as(StepVerifier::create)
+                .expectNext(model)
+                .verifyComplete();
+
+        verify(orderRepository).findByIdAndSessionId(orderId, sessionId);
     }
 }

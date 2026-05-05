@@ -3,74 +3,91 @@ package ru.yandex.practicum.mymarket.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.yandex.practicum.mymarket.dto.ItemDto;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import ru.yandex.practicum.mymarket.mapper.ItemMapper;
-import ru.yandex.practicum.mymarket.model.CartItem;
+import ru.yandex.practicum.mymarket.mapper.OrderMapper;
+import ru.yandex.practicum.mymarket.model.Item;
 import ru.yandex.practicum.mymarket.model.Order;
 import ru.yandex.practicum.mymarket.model.OrderItem;
 import ru.yandex.practicum.mymarket.repository.CartRepository;
+import ru.yandex.practicum.mymarket.repository.ItemRepository;
+import ru.yandex.practicum.mymarket.repository.OrderItemRepository;
 import ru.yandex.practicum.mymarket.repository.OrderRepository;
 
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
 public class OrderService {
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
     private final CartRepository cartRepository;
+    private final ItemRepository itemRepository;
     private final ItemMapper itemMapper;
+    private final OrderMapper orderMapper;
 
     @Transactional
-    public Long createOrder(UUID sessionId) {
-        List<CartItem> cartItems = cartRepository.findBySessionId(sessionId);
-        if (cartItems.isEmpty()) {
-            throw new IllegalStateException("Cart is empty");
-        }
+    public Mono<Order> createOrder(UUID sessionId) {
+        return itemRepository.findBySessionId(sessionId)
+                .collectList()
+                .flatMap(items -> {
+                    if (items.isEmpty()) {
+                        return Mono.error(new IllegalStateException("Cart is empty"));
+                    }
 
-        BigDecimal totalBigDecimal = cartItems.stream()
-                .map(ci -> ci.getItem().getPrice().multiply(BigDecimal.valueOf(ci.getCount())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    BigDecimal total = items.stream()
+                            .map(item -> {
+                                Integer count = item.getCount();
+                                if (count == null) count = 0; // Guard against null count
+                                return item.getPrice().multiply(BigDecimal.valueOf(count));
+                            })
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        Order order = Order.builder()
-                .sessionId(sessionId)
-                .total(totalBigDecimal.longValue())
-                .build();
+                    Order order = Order.builder()
+                            .sessionId(sessionId)
+                            .total(total)
+                            .build();
 
-        List<OrderItem> orderItems = cartItems.stream()
-                .map(ci -> OrderItem.builder()
-                        .order(order)
-                        .item(ci.getItem())
-                        .count(ci.getCount())
-                        .build())
-                .collect(Collectors.toList());
+                    return orderRepository.save(orderMapper.toEntity(order))
+                            .map(orderMapper::toModel)
+                            .flatMap(savedOrder -> {
+                                var orderItems = items.stream()
+                                        .map(item -> {
+                                            OrderItem orderItem = new OrderItem();
+                                            orderItem.setOrderId(savedOrder.getId());
+                                            orderItem.setItemId(item.getId());
+                                            Integer count = item.getCount();
+                                            orderItem.setCount(count != null ? count : 0);
+                                            return orderMapper.toEntity(orderItem);
+                                        }).toList();
 
-        order.setItems(orderItems);
-        Order savedOrder = orderRepository.save(order);
-
-        cartRepository.deleteAll(cartItems);
-
-        return savedOrder.getId();
+                                return orderItemRepository.saveAll(Flux.fromIterable(orderItems))
+                                        .then(cartRepository.deleteBySessionId(sessionId))
+                                        .thenReturn(savedOrder);
+                            });
+                });
     }
 
-    public Optional<Order> getOrderById(Long id) {
-        return orderRepository.findById(id);
+    public Mono<Order> getOrderByIdAndSessionId(Long id, UUID sessionId) {
+        return orderRepository.findByIdAndSessionId(id, sessionId).map(orderMapper::toModel);
     }
 
-    public List<ItemDto> getOrderItemsDto(Order order) {
-        return order.getItems().stream()
-                .map(oi -> {
-                    ItemDto dto = itemMapper.toDto(oi.getItem());
-                    dto.setCount(oi.getCount());
-                    return dto;
-                })
-                .collect(Collectors.toList());
+    public Flux<Item> getOrderItems(Long orderId) {
+        return orderItemRepository.findByOrderId(orderId)
+                .flatMap(orderItem ->
+                        itemRepository.findById(orderItem.getItemId())
+                                .map(item -> {
+                                    Item model = itemMapper.toModel(item);
+                                    model.setCount(orderItem.getCount());
+                                    return model;
+                                })
+                );
     }
 
-    public List<Order> getAllOrders() {
-        return orderRepository.findAll();
+    public Flux<Order> findBySessionId(UUID sessionId) {
+        return orderRepository.findBySessionId(sessionId).map(orderMapper::toModel);
     }
 }
