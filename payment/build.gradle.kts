@@ -35,8 +35,6 @@ tasks.register<GenerateTask>("openApiGenerateClient") {
     ))
 }
 
-
-
 openApiValidate {
     inputSpec.set("$rootDir/openapi.yaml")
 }
@@ -59,7 +57,6 @@ dependencies {
     implementation("org.openapitools:jackson-databind-nullable:0.2.6")
     implementation("io.swagger.core.v3:swagger-annotations:2.2.22")
     implementation("jakarta.validation:jakarta.validation-api:3.0.2")
-    implementation("io.projectreactor:reactor-tools")
 
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
