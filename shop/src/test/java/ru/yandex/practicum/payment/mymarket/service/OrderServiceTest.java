@@ -10,6 +10,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import ru.yandex.practicum.shop.client.PaymentClient;
+import ru.yandex.practicum.shop.client.model.PaymentRequest;
 import ru.yandex.practicum.shop.entity.ItemEntity;
 import ru.yandex.practicum.shop.entity.OrderEntity;
 import ru.yandex.practicum.shop.entity.OrderItemEntity;
@@ -150,6 +151,7 @@ class OrderServiceTest {
 
         when(itemRepository.findBySessionId(sessionId)).thenReturn(Flux.just(itemEntity));
         when(paymentClient.getBalance(sessionId)).thenReturn(Mono.just(balance));
+        when(paymentClient.pay(any(PaymentRequest.class), eq(sessionId))).thenReturn(Mono.empty());
         when(orderMapper.toEntity(any(Order.class))).thenReturn(new OrderEntity());
         when(orderRepository.save(any(OrderEntity.class))).thenReturn(Mono.just(savedEntity));
         when(orderMapper.toModel(savedEntity)).thenReturn(savedModel);

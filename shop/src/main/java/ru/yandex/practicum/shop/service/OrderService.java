@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.client.PaymentClient;
+import ru.yandex.practicum.shop.client.model.PaymentRequest;
 import ru.yandex.practicum.shop.exception.InsufficientFundsException;
 import ru.yandex.practicum.shop.exception.PaymentServiceException;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
@@ -62,7 +63,8 @@ public class OrderService {
                         return Mono.error(new InsufficientFundsException("На балансе недостаточно средств"));
                     }
 
-                    return createOrder(sessionId);
+                    return paymentClient.pay(new PaymentRequest(sessionId.toString(), total), sessionId)
+                            .then(createOrder(sessionId));
                 });
     }
 
