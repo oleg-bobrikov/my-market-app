@@ -1,3 +1,5 @@
+import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
+
 plugins {
     java
     id("org.springframework.boot")
@@ -18,6 +20,22 @@ openApiGenerate {
         "reactive" to "true"
     ))
 }
+
+tasks.register<GenerateTask>("openApiGenerateClient") {
+    description = "generate client"
+    generatorName.set("java")
+    library.set("webclient")
+    inputSpec.set("$rootDir/openapi.yaml")
+    outputDir.set("$projectDir/build/generated")
+    apiPackage.set("ru.yandex.practicum.payment.client.api")
+    modelPackage.set("ru.yandex.practicum.payment.model")
+    configOptions.set(mapOf(
+        "useSpringBoot3" to "true",
+        "reactive" to "true"
+    ))
+}
+
+
 
 openApiValidate {
     inputSpec.set("$rootDir/openapi.yaml")
@@ -45,8 +63,6 @@ dependencies {
 
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
-    testCompileOnly("org.projectlombok:lombok")
-    testAnnotationProcessor("org.projectlombok:lombok")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
@@ -55,12 +71,4 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
-}
-
-sourceSets {
-    main {
-        java {
-            srcDir("build/generated/src/main/java")
-        }
-    }
 }

@@ -26,6 +26,7 @@ public class CartControllerTest extends BaseWebFluxTest {
         when(cartService.getCartItems(sessionId)).thenReturn(Flux.fromIterable(items));
         when(cartService.getTotalPrice(items)).thenReturn(Mono.just(BigDecimal.TEN));
         when(itemMapper.toDto(item)).thenReturn(itemDto);
+        when(paymentClient.getBalance(sessionId)).thenReturn(Mono.just(BigDecimal.valueOf(100)));
 
         webTestClient.get().uri("/cart/items")
                 .cookie("SESSION_ID", sessionId.toString())
