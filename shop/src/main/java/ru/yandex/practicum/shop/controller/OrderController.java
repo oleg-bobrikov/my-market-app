@@ -8,6 +8,8 @@ import org.springframework.web.reactive.result.view.Rendering;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
+import ru.yandex.practicum.shop.exception.InsufficientFundsException;
+import ru.yandex.practicum.shop.exception.PaymentServiceException;
 import ru.yandex.practicum.shop.service.CartService;
 import ru.yandex.practicum.shop.service.OrderService;
 
@@ -28,27 +30,14 @@ public class OrderController {
     public Mono<Rendering> buy(ServerWebExchange exchange) {
         UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
 
-        return orderService.calculateTotal(sessionUuid)
-                .flatMap(total ->
-                        orderService.getBalance(sessionUuid)
-                                .zipWith(Mono.just(total))
-                )
-                // баланс достаточный
-                .filter(tuple -> tuple.getT1().compareTo(tuple.getT2()) >= 0)
-                .flatMap(tuple ->
-                        orderService.createOrder(sessionUuid)
-                                .map(order ->
-                                        Rendering.redirectTo("/orders/" + order.getId()).build()
-                                )
-                )
-                // недостаточно средств
-                .switchIfEmpty(renderCartWithError(sessionUuid, "на балансе недостаточно средств"))
-                // ошибки сервиса платежей
-                .onErrorResume(e -> {
+        return orderService.buy(sessionUuid)
+                .map(order -> Rendering.redirectTo("/orders/" + order.getId()).build())
+                .onErrorResume(InsufficientFundsException.class,
+                        e -> renderCartWithError(sessionUuid, e.getMessage()))
+                .onErrorResume(PaymentServiceException.class, e -> {
                     log.error("Payment service error: {}", e.getMessage());
                     return renderCartWithError(sessionUuid, "сервис платежей недоступен");
                 })
-                // ошибка состояния сессии
                 .onErrorResume(IllegalStateException.class,
                         e -> Mono.just(Rendering.redirectTo("/items").build())
                 );

@@ -4,6 +4,8 @@ import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import ru.yandex.practicum.shop.exception.InsufficientFundsException;
+import ru.yandex.practicum.shop.exception.PaymentServiceException;
 import ru.yandex.practicum.shop.model.Order;
 
 import java.math.BigDecimal;
@@ -20,9 +22,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
         BigDecimal balance = BigDecimal.valueOf(200);
         Order order = Order.builder().id(123L).total(total).build();
 
-        when(orderService.calculateTotal(sessionId)).thenReturn(Mono.just(total));
-        when(orderService.getBalance(sessionId)).thenReturn(Mono.just(balance));
-        when(orderService.createOrder(sessionId)).thenReturn(Mono.just(order));
+        when(orderService.buy(sessionId)).thenReturn(Mono.just(order));
 
         webTestClient.post().uri("/buy")
                 .cookie("SESSION_ID", sessionId.toString())
@@ -30,17 +30,15 @@ public class OrderControllerTest extends BaseWebFluxTest {
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/orders/123");
 
-        verify(orderService).createOrder(sessionId);
+        verify(orderService).buy(sessionId);
     }
 
     @Test
     public void testBuyInsufficientBalance() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         BigDecimal total = BigDecimal.valueOf(200);
-        BigDecimal balance = BigDecimal.valueOf(100);
 
-        when(orderService.calculateTotal(sessionId)).thenReturn(Mono.just(total));
-        when(orderService.getBalance(sessionId)).thenReturn(Mono.just(balance));
+        when(orderService.buy(sessionId)).thenReturn(Mono.error(new InsufficientFundsException("на балансе недостаточно средств")));
         when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(new ru.yandex.practicum.shop.model.Item()));
         when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
@@ -59,8 +57,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         BigDecimal total = BigDecimal.valueOf(100);
 
-        when(orderService.calculateTotal(sessionId)).thenReturn(Mono.just(total));
-        when(orderService.getBalance(sessionId)).thenReturn(Mono.error(new RuntimeException("Service down")));
+        when(orderService.buy(sessionId)).thenReturn(Mono.error(new PaymentServiceException("Service down")));
         when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(new ru.yandex.practicum.shop.model.Item()));
         when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));

@@ -9,9 +9,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import ru.yandex.practicum.shop.client.PaymentClient;
 import ru.yandex.practicum.shop.entity.ItemEntity;
 import ru.yandex.practicum.shop.entity.OrderEntity;
 import ru.yandex.practicum.shop.entity.OrderItemEntity;
+import ru.yandex.practicum.shop.exception.InsufficientFundsException;
+import ru.yandex.practicum.shop.exception.PaymentServiceException;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.mapper.OrderMapper;
 import ru.yandex.practicum.shop.model.Item;
@@ -49,6 +52,9 @@ class OrderServiceTest {
 
     @Mock
     private OrderMapper orderMapper;
+
+    @Mock
+    private PaymentClient paymentClient;
 
     @InjectMocks
     private OrderService orderService;
@@ -127,6 +133,71 @@ class OrderServiceTest {
                 .as(StepVerifier::create)
                 .expectNextMatches(model -> model.getId().equals(itemId) && model.getCount() == count)
                 .verifyComplete();
+    }
+
+    @Test
+    void buy_Success() {
+        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        ItemEntity itemEntity = ItemEntity.builder()
+                .id(1L)
+                .price(new BigDecimal("100.00"))
+                .count(2)
+                .build();
+        BigDecimal total = new BigDecimal("200.00");
+        BigDecimal balance = new BigDecimal("300.00");
+        Order savedModel = Order.builder().id(10L).sessionId(sessionId).total(total).build();
+        OrderEntity savedEntity = OrderEntity.builder().id(10L).sessionId(sessionId).total(total).build();
+
+        when(itemRepository.findBySessionId(sessionId)).thenReturn(Flux.just(itemEntity));
+        when(paymentClient.getBalance(sessionId)).thenReturn(Mono.just(balance));
+        when(orderMapper.toEntity(any(Order.class))).thenReturn(new OrderEntity());
+        when(orderRepository.save(any(OrderEntity.class))).thenReturn(Mono.just(savedEntity));
+        when(orderMapper.toModel(savedEntity)).thenReturn(savedModel);
+        when(orderMapper.toEntity(any(OrderItem.class))).thenReturn(new OrderItemEntity());
+        when(orderItemRepository.saveAll(any(Flux.class))).thenReturn(Flux.empty());
+        when(cartRepository.deleteBySessionId(sessionId)).thenReturn(Mono.empty());
+
+        orderService.buy(sessionId)
+                .as(StepVerifier::create)
+                .expectNextMatches(order -> order.getId().equals(10L))
+                .verifyComplete();
+    }
+
+    @Test
+    void buy_InsufficientFunds() {
+        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        ItemEntity itemEntity = ItemEntity.builder()
+                .id(1L)
+                .price(new BigDecimal("100.00"))
+                .count(2)
+                .build();
+        BigDecimal balance = new BigDecimal("150.00");
+
+        when(itemRepository.findBySessionId(sessionId)).thenReturn(Flux.just(itemEntity));
+        when(paymentClient.getBalance(sessionId)).thenReturn(Mono.just(balance));
+
+        orderService.buy(sessionId)
+                .as(StepVerifier::create)
+                .expectError(InsufficientFundsException.class)
+                .verify();
+    }
+
+    @Test
+    void buy_PaymentServiceError() {
+        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        ItemEntity itemEntity = ItemEntity.builder()
+                .id(1L)
+                .price(new BigDecimal("100.00"))
+                .count(2)
+                .build();
+
+        when(itemRepository.findBySessionId(sessionId)).thenReturn(Flux.just(itemEntity));
+        when(paymentClient.getBalance(sessionId)).thenReturn(Mono.error(new RuntimeException("Conn error")));
+
+        orderService.buy(sessionId)
+                .as(StepVerifier::create)
+                .expectError(PaymentServiceException.class)
+                .verify();
     }
 
     @Test

@@ -6,6 +6,8 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.client.PaymentClient;
+import ru.yandex.practicum.shop.exception.InsufficientFundsException;
+import ru.yandex.practicum.shop.exception.PaymentServiceException;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.mapper.OrderMapper;
 import ru.yandex.practicum.shop.model.Item;
@@ -43,6 +45,25 @@ public class OrderService {
                     return item.getPrice().multiply(BigDecimal.valueOf(count));
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    @Transactional
+    public Mono<Order> buy(UUID sessionId) {
+        return calculateTotal(sessionId)
+                .flatMap(total -> getBalance(sessionId)
+                        .zipWith(Mono.just(total))
+                )
+                .onErrorMap(e -> new PaymentServiceException(e.getMessage()))
+                .flatMap(tuple -> {
+                    BigDecimal balance = tuple.getT1();
+                    BigDecimal total = tuple.getT2();
+
+                    if (balance.compareTo(total) < 0) {
+                        return Mono.error(new InsufficientFundsException("на балансе недостаточно средств"));
+                    }
+
+                    return createOrder(sessionId);
+                });
     }
 
     @Transactional
