@@ -1,0 +1,111 @@
+openapi: 3.0.3
+info:
+  title: Payment Service API
+  description: API для управления платежами
+  version: 1.0.0
+
+servers:
+  - url: /payments/api
+
+security:
+  - SessionAuth: [ ]
+
+paths:
+  /:
+    post:
+      operationId: payOrder
+      summary: Выполнить оплату заказа
+      description: Списание суммы заказа с баланса покупателя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '200':
+          description: Платеж успешно выполнен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '400':
+          description: Недостаточно средств
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /balance:
+    get:
+      operationId: getBalance
+      summary: Получить информацию о балансе счета
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Balance'
+
+components:
+  securitySchemes:
+    SessionAuth:
+      type: apiKey
+      in: header
+      name: session_id
+
+  schemas:
+    Balance:
+      type: object
+      properties:
+        clientId:
+          type: string
+          format: uuid
+        balance:
+          type: string
+          description: Баланс в рублях
+          example: "1000.00"
+
+    PaymentRequest:
+      type: object
+      required:
+        - orderId
+        - amount
+      properties:
+        orderId:
+          type: string
+          example: "ORD-123"
+        amount:
+          type: string
+          description: Сумма в рублях
+          example: "1000.00"
+
+    PaymentResponse:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/PaymentStatus'
+        orderId:
+          type: string
+          example: "ORD-123"
+        remainingBalance:
+          type: string
+          description: Остаток на балансе в рублях
+          example: "5000.00"
+
+    PaymentStatus:
+      type: string
+      enum:
+        - SUCCESS
+        - ERROR
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ERROR
+        message:
+          type: string
+          example: Недостаточно средств на счете

@@ -1,13 +1,13 @@
-package ru.yandex.practicum.payment;
+package ru.yandex.practicum.shop;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class PaymentApplication {
+public class ShopApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(PaymentApplication.class, args);
+		SpringApplication.run(ShopApplication.class, args);
 	}
 
 }
