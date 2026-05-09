@@ -42,9 +42,9 @@ public class CartController extends BaseController{
                     }
                     return cartService.getTotalPrice(items)
                             .map(total -> {
-                                var dtos = items.stream().map(itemMapper::toDto).toList();
+                                var itemsDto = items.stream().map(itemMapper::toDto).toList();
                                 return Rendering.view("cart")
-                                        .modelAttribute("items", dtos)
+                                        .modelAttribute("items", itemsDto)
                                         .modelAttribute("total", total)
                                         .build();
                             });
