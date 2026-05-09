@@ -16,7 +16,12 @@ public class OrderControllerTest extends BaseWebFluxTest {
     @Test
     public void testBuyRedirectsToOrder() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        Order order = Order.builder().id(123L).total(BigDecimal.ZERO).build();
+        BigDecimal total = BigDecimal.valueOf(100);
+        BigDecimal balance = BigDecimal.valueOf(200);
+        Order order = Order.builder().id(123L).total(total).build();
+
+        when(orderService.calculateTotal(sessionId)).thenReturn(Mono.just(total));
+        when(orderService.getBalance(sessionId)).thenReturn(Mono.just(balance));
         when(orderService.createOrder(sessionId)).thenReturn(Mono.just(order));
 
         webTestClient.post().uri("/buy")
@@ -26,6 +31,47 @@ public class OrderControllerTest extends BaseWebFluxTest {
                 .expectHeader().valueEquals("Location", "/orders/123");
 
         verify(orderService).createOrder(sessionId);
+    }
+
+    @Test
+    public void testBuyInsufficientBalance() {
+        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        BigDecimal total = BigDecimal.valueOf(200);
+        BigDecimal balance = BigDecimal.valueOf(100);
+
+        when(orderService.calculateTotal(sessionId)).thenReturn(Mono.just(total));
+        when(orderService.getBalance(sessionId)).thenReturn(Mono.just(balance));
+        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(new ru.yandex.practicum.shop.model.Item()));
+        when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
+        when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
+
+        webTestClient.post().uri("/buy")
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class).value(body -> {
+                    org.junit.jupiter.api.Assertions.assertTrue(body.contains("на балансе недостаточно средств"), "Body does not contain expected error message. Body: " + body);
+                });
+    }
+
+    @Test
+    public void testBuyServiceUnavailable() {
+        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        BigDecimal total = BigDecimal.valueOf(100);
+
+        when(orderService.calculateTotal(sessionId)).thenReturn(Mono.just(total));
+        when(orderService.getBalance(sessionId)).thenReturn(Mono.error(new RuntimeException("Service down")));
+        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(new ru.yandex.practicum.shop.model.Item()));
+        when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
+        when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
+
+        webTestClient.post().uri("/buy")
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class).value(body -> {
+                    org.junit.jupiter.api.Assertions.assertTrue(body.contains("сервис платежей недоступен"), "Body does not contain expected error message. Body: " + body);
+                });
     }
 
     @Test

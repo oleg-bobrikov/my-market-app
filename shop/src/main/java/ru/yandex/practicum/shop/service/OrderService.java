@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import ru.yandex.practicum.shop.client.PaymentClient;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.mapper.OrderMapper;
 import ru.yandex.practicum.shop.model.Item;
@@ -28,6 +29,21 @@ public class OrderService {
     private final ItemRepository itemRepository;
     private final ItemMapper itemMapper;
     private final OrderMapper orderMapper;
+    private final PaymentClient paymentClient;
+
+    public Mono<BigDecimal> getBalance(UUID sessionId) {
+        return paymentClient.getBalance(sessionId);
+    }
+
+    public Mono<BigDecimal> calculateTotal(UUID sessionId) {
+        return itemRepository.findBySessionId(sessionId)
+                .map(item -> {
+                    Integer count = item.getCount();
+                    if (count == null) count = 0;
+                    return item.getPrice().multiply(BigDecimal.valueOf(count));
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
 
     @Transactional
     public Mono<Order> createOrder(UUID sessionId) {

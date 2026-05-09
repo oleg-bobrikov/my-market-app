@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import ru.yandex.practicum.shop.client.PaymentClient;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.model.CartAction;
 import ru.yandex.practicum.shop.service.CartService;
@@ -21,11 +22,13 @@ import static ru.yandex.practicum.shop.filter.SessionWebFilter.SESSION_ATTRIBUTE
 public class CartController extends BaseController{
     private final CartService cartService;
     private final ItemMapper itemMapper;
+    private final PaymentClient paymentClient;
 
     @Autowired
-    public CartController(CartService cartService, ItemMapper itemMapper) {
+    public CartController(CartService cartService, ItemMapper itemMapper, PaymentClient paymentClient) {
         this.cartService = cartService;
         this.itemMapper = itemMapper;
+        this.paymentClient = paymentClient;
     }
 
     @GetMapping("/items")
@@ -41,13 +44,28 @@ public class CartController extends BaseController{
                         return Mono.just(Rendering.redirectTo("/items").build());
                     }
                     return cartService.getTotalPrice(items)
-                            .map(total -> {
-                                var itemsDto = items.stream().map(itemMapper::toDto).toList();
-                                return Rendering.view("cart")
-                                        .modelAttribute("items", itemsDto)
-                                        .modelAttribute("total", total)
-                                        .build();
-                            });
+                            .flatMap(total -> paymentClient.getBalance(sessionUuid)
+                                    .map(balance -> {
+                                        var itemsDto = items.stream().map(itemMapper::toDto).toList();
+                                        var rendering = Rendering.view("cart")
+                                                .modelAttribute("items", itemsDto)
+                                                .modelAttribute("total", total);
+
+                                        if (balance.compareTo(total) < 0) {
+                                            rendering.modelAttribute("paymentError", "на балансе недостаточно средств");
+                                        }
+                                        return rendering.build();
+                                    })
+                                    .onErrorResume(e -> {
+                                        log.error("Payment service error for session {}: {}", sessionUuid, e.getMessage());
+                                        var itemsDto = items.stream().map(itemMapper::toDto).toList();
+                                        return Mono.just(Rendering.view("cart")
+                                                .modelAttribute("items", itemsDto)
+                                                .modelAttribute("total", total)
+                                                .modelAttribute("paymentError", "сервис платежей недоступен")
+                                                .build());
+                                    })
+                            );
                 })
                 .switchIfEmpty(Mono.just(Rendering.redirectTo("/items").build()));
     }
