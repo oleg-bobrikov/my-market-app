@@ -59,7 +59,7 @@ public class OrderService {
                     BigDecimal total = tuple.getT2();
 
                     if (balance.compareTo(total) < 0) {
-                        return Mono.error(new InsufficientFundsException("на балансе недостаточно средств"));
+                        return Mono.error(new InsufficientFundsException("На балансе недостаточно средств"));
                     }
 
                     return createOrder(sessionId);
@@ -72,7 +72,7 @@ public class OrderService {
                 .collectList()
                 .flatMap(items -> {
                     if (items.isEmpty()) {
-                        return Mono.error(new IllegalStateException("Cart is empty"));
+                        return Mono.error(new IllegalStateException("Корзина пуста"));
                     }
 
                     BigDecimal total = items.stream()
