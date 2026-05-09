@@ -104,8 +104,7 @@ components:
       type: object
       properties:
         status:
-          type: string
-          example: ERROR
+          $ref: '#/components/schemas/PaymentStatus'
         message:
           type: string
           example: Недостаточно средств на счете

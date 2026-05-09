@@ -1,7 +1,7 @@
 package ru.yandex.practicum.payment.model;
 
 public record ErrorResponse(
-        Enum<PaymentStatus> status,
+        PaymentStatus status,
         String message
 ) {
 }

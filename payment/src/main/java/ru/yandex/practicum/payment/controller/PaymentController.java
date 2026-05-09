@@ -39,12 +39,12 @@ public class PaymentController {
                     )
             }
     )
-    public Mono<ResponseEntity<Object>> payOrder(
+    public Mono<ResponseEntity<?>> payOrder(
             @RequestBody PaymentRequest paymentRequest,
             @RequestHeader("session_id") String sessionId
     ) {
         return paymentService.payOrder(UUID.fromString(sessionId), paymentRequest)
-                .map(response -> ResponseEntity.ok((Object) response))
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
                         .body(new ErrorResponse(PaymentStatus.ERROR, e.getMessage()))));
     }
