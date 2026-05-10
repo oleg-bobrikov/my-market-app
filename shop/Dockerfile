@@ -1,8 +1,8 @@
 FROM gradle:8-jdk21 AS build
 WORKDIR /app
 
-COPY gradle ./gradle
-COPY gradlew build.gradle.kts settings.gradle.kts ./
+COPY ../gradle ./gradle
+COPY ../gradlew build.gradle.kts settings.gradle.kts ./
 
 RUN ./gradlew --no-daemon dependencies
 
