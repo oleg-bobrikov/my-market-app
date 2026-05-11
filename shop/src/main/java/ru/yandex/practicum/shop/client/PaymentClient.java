@@ -16,7 +16,7 @@ import java.util.UUID;
 public class PaymentClient {
     private final WebClient webClient;
 
-    public PaymentClient(@Value("${payment.service.url:http://localhost:8081}") String baseUrl) {
+    public PaymentClient(@Value("${payment.service.url}") String baseUrl) {
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
                 .build();

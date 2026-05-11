@@ -129,8 +129,12 @@ java -jar shop/build/libs/shop-0.0.1-SNAPSHOT.jar
 ### 2. Запуск через Docker Compose
 Запуск всей инфраструктуры (БД, Redis) и сервисов:
 ```bash
-docker-compose up -d
+docker-compose up --build -d
 ```
+После запуска:
+- Витрина магазина: [http://localhost:8080](http://localhost:8080)
+- Сервис платежей: [http://localhost:8081](http://localhost:8081)
+- Redis: `localhost:6379`
 
 ## 🛠️ Настройка окружения
 
@@ -139,9 +143,9 @@ docker-compose up -d
 | Переменная | Описание | Значение по умолчанию |
 |------------|----------|-----------------------|
 | `SERVER_PORT` | Порт приложения | `8080` (shop), `8081` (payment) |
-| `SPRING_R2DBC_URL` | URL подключения к БД (R2DBC) | `r2dbc:postgresql://localhost:5432/market` |
-| `SPRING_R2DBC_USERNAME` | Пользователь БД | `pgsql` |
-| `SPRING_R2DBC_PASSWORD` | Пароль БД | `pgsql` |
+| `SPRING_R2DBC_URL` | URL подключения к БД (R2DBC) | `r2dbc:h2:mem:///...` |
+| `SPRING_DATA_REDIS_HOST` | Хост Redis | `localhost` |
+| `SPRING_DATA_REDIS_PORT` | Порт Redis | `6379` |
 | `PAYMENT_SERVICE_URL` | URL сервиса платежей | `http://localhost:8081` |
 
 ### 🛠️ Обработка ошибок

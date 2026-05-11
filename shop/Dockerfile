@@ -1,24 +1,27 @@
 FROM gradle:8-jdk21 AS build
 WORKDIR /app
 
-COPY ../gradle ./gradle
-COPY ../gradlew build.gradle.kts settings.gradle.kts ./
+COPY gradle ./gradle
+COPY gradlew build.gradle.kts settings.gradle.kts ./
+COPY shop/build.gradle.kts ./shop/
+COPY payment/build.gradle.kts ./payment/
+COPY openapi.yaml ./
 
-RUN ./gradlew --no-daemon dependencies
+RUN sed -i 's/\r$//' gradlew && chmod +x gradlew && ./gradlew :shop:dependencies --no-daemon
 
-COPY src ./src
+COPY shop/src ./shop/src
 
-RUN ./gradlew --no-daemon build -x test
+RUN ./gradlew :shop:build -x test --no-daemon
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 ENV SERVER_PORT=8080
 ENV SPRING_R2DBC_URL="r2dbc:h2:file:///app/data/market;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
-ENV SPRING_R2DBC_USERNAME="sa"
-ENV SPRING_R2DBC_PASSWORD=""
+ENV SPRING_DATA_REDIS_HOST=redis
+ENV PAYMENT_SERVICE_URL=http://payment:8081
 
-COPY --from=build /app/build/libs/my-market-app-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build /app/shop/build/libs/*.jar app.jar
 
 EXPOSE ${SERVER_PORT}
 
