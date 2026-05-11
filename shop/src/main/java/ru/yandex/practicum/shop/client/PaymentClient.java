@@ -27,11 +27,11 @@ public class PaymentClient {
         paymentApi.getApiClient().addDefaultHeader("session_id", sessionId.toString());
         return paymentApi.getBalance()
                 .map(balance -> new BigDecimal(balance.getBalance()))
-                .onErrorResume(e -> {
-                    if (e instanceof WebClientResponseException webEx) {
+                .onErrorResume(ex -> {
+                    if (ex instanceof WebClientResponseException webEx) {
                         return Mono.error(new PaymentServiceException("Ошибка при получении баланса: " + webEx.getMessage()));
                     }
-                    return Mono.error(e);
+                    return Mono.error(ex);
                 });
     }
 
@@ -43,14 +43,14 @@ public class PaymentClient {
         apiRequest.setAmount(paymentRequest.amount().toString());
 
         return paymentApi.payOrder(apiRequest)
-                .onErrorResume(e -> {
-                    if (e instanceof WebClientResponseException webEx) {
+                .onErrorResume(ex -> {
+                    if (ex instanceof WebClientResponseException webEx) {
                         if (webEx.getStatusCode().is4xxClientError()) {
                             return Mono.error(new InsufficientFundsException("Недостаточно средств или ошибка клиента"));
                         }
                         return Mono.error(new PaymentServiceException("Ошибка сервиса платежей: " + webEx.getMessage()));
                     }
-                    return Mono.error(e);
+                    return Mono.error(ex);
                 })
                 .then();
     }
