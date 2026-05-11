@@ -26,36 +26,38 @@ public class PaymentClient {
     public Mono<BigDecimal> getBalance(UUID sessionId) {
         paymentApi.getApiClient().addDefaultHeader("session_id", sessionId.toString());
         return paymentApi.getBalance()
-                .map(balance -> {
-                    if (balance.getBalance() == null) {
-                        return BigDecimal.ZERO;
-                    }
-                    return new BigDecimal(balance.getBalance());
-                })
-                .onErrorResume(e -> {
-                    if (e instanceof WebClientResponseException webEx) {
-                        return Mono.error(new PaymentServiceException("Ошибка при получении баланса: " + webEx.getMessage()));
-                    }
-                    return Mono.error(e);
-                });
+                .map(balance -> balance.getBalance() == null
+                        ? BigDecimal.ZERO
+                        : new BigDecimal(balance.getBalance()))
+                .onErrorResume(WebClientResponseException.class, webEx ->
+                        Mono.error(
+                                new PaymentServiceException(
+                                        "Ошибка при получении баланса: " + webEx.getMessage()
+                                )
+                        )
+                );
     }
 
     public Mono<Void> pay(ru.yandex.practicum.shop.client.model.PaymentRequest paymentRequest, UUID sessionId) {
         paymentApi.getApiClient().addDefaultHeader("session_id", sessionId.toString());
-        
+
         PaymentRequest apiRequest = new PaymentRequest();
         apiRequest.setOrderId(paymentRequest.orderId());
         apiRequest.setAmount(paymentRequest.amount().toString());
 
         return paymentApi.payOrder(apiRequest)
-                .onErrorResume(e -> {
-                    if (e instanceof WebClientResponseException webEx) {
-                        if (webEx.getStatusCode().is4xxClientError()) {
-                            return Mono.error(new InsufficientFundsException("Недостаточно средств или ошибка клиента"));
-                        }
-                        return Mono.error(new PaymentServiceException("Ошибка сервиса платежей: " + webEx.getMessage()));
+                .onErrorResume(WebClientResponseException.class, webEx -> {
+                    if (webEx.getStatusCode().is4xxClientError()) {
+                        return Mono.error(
+                                new InsufficientFundsException("Недостаточно средств или ошибка клиента")
+                        );
                     }
-                    return Mono.error(e);
+
+                    return Mono.error(
+                            new PaymentServiceException(
+                                    "Ошибка сервиса платежей: " + webEx.getMessage()
+                            )
+                    );
                 })
                 .then();
     }
