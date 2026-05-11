@@ -7,9 +7,10 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import ru.yandex.practicum.shop.ShopApplication;
+import ru.yandex.practicum.payment.mymarket.configuration.EmbeddedRedisConfiguration;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ContextConfiguration(classes = ShopApplication.class)
+@ContextConfiguration(classes = {ShopApplication.class, EmbeddedRedisConfiguration.class})
 @AutoConfigureWebTestClient(timeout = "30000")
 @ActiveProfiles("test")
 public abstract class BaseIntegrationTest {

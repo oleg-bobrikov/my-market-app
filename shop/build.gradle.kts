@@ -35,6 +35,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.mockito:mockito-core:5.11.0")
+    testImplementation("com.github.codemonstur:embedded-redis:1.4.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

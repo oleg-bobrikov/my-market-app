@@ -1,6 +1,7 @@
 package ru.yandex.practicum.payment.mymarket.repository;
 
 import com.github.f4b6a3.uuid.UuidCreator;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import reactor.test.StepVerifier;
@@ -25,11 +26,9 @@ class OrderRepositoryTest extends BaseDataR2dbcTest {
 
         orderRepository.save(order)
                 .as(StepVerifier::create)
-                .expectNextMatches(savedOrder -> {
-                    return savedOrder.getId() != null &&
-                            savedOrder.getSessionId().equals(sessionId) &&
-                            savedOrder.getTotal().compareTo(BigDecimal.valueOf(1000)) == 0;
-                })
+                .expectNextMatches(savedOrder -> savedOrder.getId() != null &&
+                        savedOrder.getSessionId().equals(sessionId) &&
+                        savedOrder.getTotal().compareTo(BigDecimal.valueOf(1000)) == 0)
                 .verifyComplete();
     }
 
@@ -43,6 +42,7 @@ class OrderRepositoryTest extends BaseDataR2dbcTest {
 
         OrderEntity saved = orderRepository.save(order).block();
 
+        Assertions.assertNotNull(saved);
         orderRepository.findByIdAndSessionId(saved.getId(), sessionId)
                 .as(StepVerifier::create)
                 .expectNextMatches(found -> found.getId().equals(saved.getId()) && found.getSessionId().equals(sessionId))
@@ -60,6 +60,7 @@ class OrderRepositoryTest extends BaseDataR2dbcTest {
 
         OrderEntity saved = orderRepository.save(order).block();
 
+        Assertions.assertNotNull(saved);
         orderRepository.findByIdAndSessionId(saved.getId(), otherSessionId)
                 .as(StepVerifier::create)
                 .verifyComplete();

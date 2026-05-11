@@ -16,11 +16,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import ru.yandex.practicum.shop.entity.ItemEntity;
-import ru.yandex.practicum.shop.mapper.CartItemMapper;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.model.CartAction;
 import ru.yandex.practicum.shop.model.Item;
-import ru.yandex.practicum.shop.repository.CartRepository;
 import ru.yandex.practicum.shop.repository.ItemRepository;
 import ru.yandex.practicum.shop.service.CartService;
 
@@ -34,10 +32,6 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CartServiceTest {
-
-    @Mock
-    private CartRepository cartRepository;
-
     @Mock
     private ItemRepository itemRepository;
 
@@ -45,24 +39,21 @@ class CartServiceTest {
     private ItemMapper itemMapper;
 
     @Mock
-    private CartItemMapper cartItemMapper;
+    private ReactiveRedisTemplate<String, String> redisTemplate;
 
     @Mock
-    private ReactiveRedisTemplate redisTemplate;
+    private ReactiveHashOperations<String, String, String> hashOperations;
 
     @Mock
-    private ReactiveHashOperations hashOperations;
-
-    @Mock
-    private ReactiveStreamOperations streamOperations;
+    private ReactiveStreamOperations<String, String, String> streamOperations;
 
     private CartService cartService;
 
-    @BeforeEach
     @SuppressWarnings("unchecked")
+    @BeforeEach
     void setUp() {
-        lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
-        lenient().when(redisTemplate.opsForStream()).thenReturn(streamOperations);
+        lenient().doReturn(hashOperations).when(redisTemplate).opsForHash();
+        lenient().doReturn(streamOperations).when(redisTemplate).opsForStream();
         lenient().when(redisTemplate.execute(any(RedisScript.class), anyList(), anyList())).thenReturn(Flux.just(List.of(1L, 1L)));
         lenient().when(redisTemplate.expire(anyString(), any(Duration.class))).thenReturn(Mono.just(true));
         lenient().when(streamOperations.add(any(ObjectRecord.class))).thenReturn(Mono.just(RecordId.of("0-1")));

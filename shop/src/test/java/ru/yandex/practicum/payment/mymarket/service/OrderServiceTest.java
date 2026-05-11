@@ -1,12 +1,15 @@
 package ru.yandex.practicum.payment.mymarket.service;
 
 import com.github.f4b6a3.uuid.UuidCreator;
+import org.mockito.ArgumentMatchers;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.transaction.reactive.TransactionalOperator;
+import org.mockito.stubbing.Answer;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -68,10 +71,10 @@ class OrderServiceTest {
     @InjectMocks
     private OrderService orderService;
 
-    @org.junit.jupiter.api.BeforeEach
-    void setUp() {
-        lenient().when(transactionalOperator.transactional(any(Mono.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(transactionalOperator.transactional(any(Flux.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    @SuppressWarnings("unchecked")
+    private void mockTransactional() {
+        when(transactionalOperator.transactional(any(Mono.class)))
+                .thenAnswer((Answer<Mono<?>>) invocation -> invocation.getArgument(0));
     }
 
     @Test
@@ -81,8 +84,7 @@ class OrderServiceTest {
         item.setId(1L);
         item.setPrice(new BigDecimal("100.00"));
         item.setCount(2);
-        
-        Order model = Order.builder().sessionId(sessionId).total(new BigDecimal("200.00")).build();
+
         OrderEntity entity = OrderEntity.builder().sessionId(sessionId).total(new BigDecimal("200.00")).build();
         Order savedModel = Order.builder().id(10L).sessionId(sessionId).total(new BigDecimal("200.00")).build();
         OrderEntity savedEntity = OrderEntity.builder().id(10L).sessionId(sessionId).total(new BigDecimal("200.00")).build();
@@ -93,7 +95,7 @@ class OrderServiceTest {
         when(orderRepository.save(any(OrderEntity.class))).thenReturn(Mono.just(savedEntity));
         when(orderMapper.toModel(savedEntity)).thenReturn(savedModel);
         when(orderMapper.toEntity(any(OrderItem.class))).thenReturn(new OrderItemEntity());
-        when(orderItemRepository.saveAll(any(Flux.class))).thenReturn(Flux.empty());
+        when(orderItemRepository.saveAll(ArgumentMatchers.<Publisher<OrderItemEntity>>any())).thenReturn(Flux.empty());
         when(cartRepository.deleteBySessionId(sessionId)).thenReturn(Mono.empty());
 
         orderService.createOrder(sessionId)
@@ -102,7 +104,7 @@ class OrderServiceTest {
                 .verifyComplete();
 
         verify(orderRepository).save(any(OrderEntity.class));
-        verify(orderItemRepository).saveAll(any(Flux.class));
+        verify(orderItemRepository).saveAll(ArgumentMatchers.<Publisher<OrderItemEntity>>any());
         verify(cartRepository).deleteBySessionId(sessionId);
     }
 
@@ -152,6 +154,7 @@ class OrderServiceTest {
 
     @Test
     void buy_WhenPaymentSuccessful_CreatesOrder() {
+        mockTransactional();
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         BigDecimal total = new BigDecimal("200.00");
         BigDecimal balance = new BigDecimal("300.00");
@@ -166,7 +169,7 @@ class OrderServiceTest {
         when(orderRepository.save(any(OrderEntity.class))).thenReturn(Mono.just(savedEntity));
         when(orderMapper.toModel(savedEntity)).thenReturn(savedModel);
         when(orderMapper.toEntity(any(OrderItem.class))).thenReturn(new OrderItemEntity());
-        when(orderItemRepository.saveAll(any(Flux.class))).thenReturn(Flux.empty());
+        when(orderItemRepository.saveAll(ArgumentMatchers.<Publisher<OrderItemEntity>>any())).thenReturn(Flux.empty());
         when(cartRepository.deleteBySessionId(sessionId)).thenReturn(Mono.empty());
 
         orderService.buy(sessionId)
@@ -177,6 +180,7 @@ class OrderServiceTest {
 
     @Test
     void buy_WhenBalanceInsufficient_ThrowsException() {
+        mockTransactional();
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         BigDecimal total = new BigDecimal("200.00");
         BigDecimal balance = new BigDecimal("150.00");
@@ -193,6 +197,7 @@ class OrderServiceTest {
 
     @Test
     void buy_WhenPaymentServiceFails_ThrowsException() {
+        mockTransactional();
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         BigDecimal total = new BigDecimal("200.00");
 

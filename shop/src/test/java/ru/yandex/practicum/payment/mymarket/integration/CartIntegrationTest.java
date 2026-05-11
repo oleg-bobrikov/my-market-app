@@ -4,17 +4,12 @@ import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import reactor.test.StepVerifier;
-import ru.yandex.practicum.shop.repository.CartRepository;
 import ru.yandex.practicum.shop.service.CartService;
 
-import java.time.Duration;
+import java.util.Map;
 import java.util.UUID;
 
 public class CartIntegrationTest extends BaseIntegrationTest {
-
-    @Autowired
-    private CartRepository cartRepository;
-
     @Autowired
     private CartService cartService;
 
@@ -92,7 +87,7 @@ public class CartIntegrationTest extends BaseIntegrationTest {
 
         cartService.getCartCounts(sessionId)
                 .as(StepVerifier::create)
-                .expectNextMatches(counts -> counts.isEmpty())
+                .expectNextMatches(Map::isEmpty)
                 .verifyComplete();
     }
 

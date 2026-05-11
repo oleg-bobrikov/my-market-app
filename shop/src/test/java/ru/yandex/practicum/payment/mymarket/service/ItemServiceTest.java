@@ -11,7 +11,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
-import ru.yandex.practicum.shop.entity.CartItemEntity;
 import ru.yandex.practicum.shop.entity.ItemEntity;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.model.Item;
@@ -53,11 +52,6 @@ class ItemServiceTest {
         
         Item itemModel = new Item();
         itemModel.setId(1L);
-        
-        CartItemEntity cartItemEntity = CartItemEntity.builder()
-                .itemId(1L)
-                .count(5)
-                .build();
 
         when(itemRepository.findAll(pageable)).thenReturn(Flux.just(itemEntity));
         when(cartService.getCartCounts(sessionId)).thenReturn(just(Map.of(1L, 5)));
