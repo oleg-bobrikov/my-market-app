@@ -13,7 +13,6 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 import ru.yandex.practicum.shop.exception.InsufficientFundsException;
-import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;

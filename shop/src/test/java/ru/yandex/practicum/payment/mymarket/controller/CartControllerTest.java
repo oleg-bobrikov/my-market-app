@@ -2,8 +2,6 @@ package ru.yandex.practicum.payment.mymarket.controller;
 
 import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.dto.ItemDto;

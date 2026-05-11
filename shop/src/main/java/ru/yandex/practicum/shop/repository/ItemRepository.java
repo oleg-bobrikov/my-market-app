@@ -48,18 +48,4 @@ public interface ItemRepository extends ReactiveCrudRepository<ItemEntity, Long>
             """)
     Flux<ItemEntity> searchByTitleOrDescription(String pattern, Pageable pageable);
 
-    @Query("""
-            SELECT
-                items.id,
-                items.title,
-                items.description,
-                items.img_path,
-                items.price,
-                carts.count
-            FROM items
-            INNER JOIN carts
-                ON carts.item_id = items.id
-            WHERE carts.session_id = :sessionId
-            """)
-    Flux<ItemEntity> findBySessionId(UUID sessionId);
 }

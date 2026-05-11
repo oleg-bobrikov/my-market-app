@@ -5,14 +5,12 @@ import org.springframework.data.redis.connection.stream.ObjectRecord;
 import org.springframework.data.redis.core.ReactiveHashOperations;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.ReactiveStreamOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.dto.CartEventDto;
-import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.model.CartAction;
 import ru.yandex.practicum.shop.model.Item;
-import ru.yandex.practicum.shop.repository.ItemRepository;
 
 
 import java.math.BigDecimal;
@@ -23,7 +21,6 @@ import java.util.UUID;
 
 @Service
 public class CartService {
-    private final ItemMapper itemMapper;
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final ReactiveHashOperations<String, String, String> hashOps;
     private final ReactiveStreamOperations<String, String, String> streamOps;
@@ -32,9 +29,7 @@ public class CartService {
     private static final String CART_STREAM = "cart-events";
 
     @Autowired
-    public CartService(ItemMapper itemMapper,
-                       ReactiveRedisTemplate<String, String> redisTemplate) {
-        this.itemMapper = itemMapper;
+    public CartService(ReactiveRedisTemplate<String, String> redisTemplate) {
         this.redisTemplate = redisTemplate;
         this.hashOps = redisTemplate.opsForHash();
         this.streamOps = redisTemplate.opsForStream();
@@ -51,6 +46,7 @@ public class CartService {
         return CART_PREFIX + sessionId + CART_VERSION_SUFFIX;
     }
 
+    @SuppressWarnings("unchecked")
     public Mono<Void> updateCartItem(UUID sessionId, Long itemId, CartAction action) {
         String itemsKey = itemsKey(sessionId);
         String versionKey = versionKey(sessionId);
@@ -92,7 +88,7 @@ public class CartService {
                 """;
 
         return redisTemplate.execute(
-                        org.springframework.data.redis.core.script.RedisScript.of(script, List.class),
+                        RedisScript.<List<?>>of(script, (Class<List<?>>) (Class<?>) List.class),
                         List.of(itemsKey, versionKey),
                         List.of(itemIdStr, action.name())
                 )

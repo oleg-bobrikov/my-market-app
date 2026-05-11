@@ -60,7 +60,7 @@ class ItemServiceTest {
         lenient().when(itemRedisTemplate.opsForValue()).thenReturn(reactiveValueOperations);
         lenient().when(reactiveListOperations.range(anyString(), anyLong(), anyLong())).thenReturn(Flux.empty());
         lenient().when(reactiveValueOperations.get(anyString())).thenReturn(Mono.empty());
-        lenient().when(reactiveListOperations.rightPushAll(anyString(), any(Collection.class))).thenAnswer(invocation -> {
+        lenient().when(reactiveListOperations.rightPushAll(anyString(), anyCollection())).thenAnswer(invocation -> {
             Collection<?> collection = invocation.getArgument(1);
             if (collection == null || collection.isEmpty()) {
                 throw new IllegalArgumentException("Values must not be null or empty");

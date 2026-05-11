@@ -11,6 +11,7 @@ import ru.yandex.practicum.shop.model.Order;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 public class OrderControllerTest extends BaseWebFluxTest {
@@ -19,7 +20,6 @@ public class OrderControllerTest extends BaseWebFluxTest {
     public void buy_WhenSuccessful_RedirectsToOrder() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         BigDecimal total = BigDecimal.valueOf(100);
-        BigDecimal balance = BigDecimal.valueOf(200);
         Order order = Order.builder().id(123L).total(total).build();
 
         when(orderService.buy(sessionId)).thenReturn(Mono.just(order));
@@ -47,9 +47,9 @@ public class OrderControllerTest extends BaseWebFluxTest {
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody(String.class).value(body -> {
-                    org.junit.jupiter.api.Assertions.assertTrue(body.contains("на балансе недостаточно средств"), "Body does not contain expected error message. Body: " + body);
-                });
+                .expectBody(String.class).value(body ->
+                        assertTrue(body.contains("на балансе недостаточно средств"),
+                                "Body does not contain expected error message. Body: " + body));
     }
 
     @Test
@@ -66,9 +66,9 @@ public class OrderControllerTest extends BaseWebFluxTest {
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody(String.class).value(body -> {
-                    org.junit.jupiter.api.Assertions.assertTrue(body.contains("сервис платежей недоступен"), "Body does not contain expected error message. Body: " + body);
-                });
+                .expectBody(String.class).value(body ->
+                        assertTrue(body.contains("сервис платежей недоступен"),
+                                "Body does not contain expected error message. Body: " + body));
     }
 
     @Test

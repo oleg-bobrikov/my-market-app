@@ -5,16 +5,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import reactor.test.StepVerifier;
 import ru.yandex.practicum.shop.model.CartAction;
-import ru.yandex.practicum.shop.repository.CartRepository;
 import ru.yandex.practicum.shop.repository.OrderRepository;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import ru.yandex.practicum.shop.client.PaymentClient;
 import reactor.core.publisher.Mono;
-import java.math.BigDecimal;
 
+import java.math.BigDecimal;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import static org.awaitility.Awaitility.await;
 import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
@@ -38,7 +35,7 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
     @Test
     void buy_WhenOrderCreated_RedirectsToOrderPage() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        
+
         ru.yandex.practicum.shop.entity.ItemEntity itemEntity = itemRepository.findAll().blockFirst();
         long itemId = itemEntity != null ? itemEntity.getId() : 1L;
 

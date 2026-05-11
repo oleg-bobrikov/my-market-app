@@ -11,15 +11,13 @@ import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.core.ReactiveHashOperations;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.ReactiveStreamOperations;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
-import ru.yandex.practicum.shop.entity.ItemEntity;
-import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.model.CartAction;
 import ru.yandex.practicum.shop.model.Item;
-import ru.yandex.practicum.shop.repository.ItemRepository;
 import ru.yandex.practicum.shop.service.CartService;
 
 import java.math.BigDecimal;
@@ -33,9 +31,6 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class CartServiceTest {
     @Mock
-    private ItemMapper itemMapper;
-
-    @Mock
     private ReactiveRedisTemplate<String, String> redisTemplate;
 
     @Mock
@@ -44,17 +39,25 @@ class CartServiceTest {
     @Mock
     private ReactiveStreamOperations<String, String, String> streamOperations;
 
-    @Mock
-    private ru.yandex.practicum.shop.service.ItemService itemService;
-
     private CartService cartService;
 
-    @SuppressWarnings("unchecked")
+    
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
         lenient().doReturn(hashOperations).when(redisTemplate).opsForHash();
         lenient().doReturn(streamOperations).when(redisTemplate).opsForStream();
-        lenient().when(redisTemplate.execute(any(RedisScript.class), anyList(), anyList())).thenReturn(Flux.just(List.of(1L, 1L)));
+
+        DefaultRedisScript<List<?>> script = new DefaultRedisScript<>();
+        script.setResultType((Class<List<?>>) (Class<?>) List.class);
+        script.setScriptText("return {1,2};");
+
+        lenient().when(redisTemplate.execute(
+                any(RedisScript.class),
+                anyList(),
+                anyList()
+        )).thenReturn(Flux.just(List.of(1L, 1L)));
+
         lenient().when(redisTemplate.expire(anyString(), any(Duration.class))).thenReturn(Mono.just(true));
         lenient().when(streamOperations.add(any(ObjectRecord.class))).thenReturn(Mono.just(RecordId.of("0-1")));
         lenient().when(hashOperations.put(anyString(), anyString(), anyString())).thenReturn(Mono.just(true));
@@ -64,7 +67,7 @@ class CartServiceTest {
         lenient().when(redisTemplate.delete(anyString())).thenReturn(Mono.just(1L));
         lenient().when(redisTemplate.delete(any(String[].class))).thenReturn(Mono.just(1L));
         lenient().when(hashOperations.putAll(anyString(), anyMap())).thenReturn(Mono.empty());
-        cartService = new CartService(itemMapper, redisTemplate);
+        cartService = new CartService(redisTemplate);
     }
 
     @Test

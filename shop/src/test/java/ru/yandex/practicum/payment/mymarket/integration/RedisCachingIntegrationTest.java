@@ -3,7 +3,6 @@ package ru.yandex.practicum.payment.mymarket.integration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
-import reactor.test.StepVerifier;
 import ru.yandex.practicum.shop.entity.ItemEntity;
 import ru.yandex.practicum.shop.model.Item;
 import ru.yandex.practicum.shop.repository.ItemRepository;
@@ -95,10 +94,10 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
         // 3. Проверяем, что в Redis появился ключ для этого поиска
         // Ключ формируется как items:all:search:page:size:sort
         String expectedCacheKey = String.format("items:all:%s:%d:%d:%s",
-                search, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort().toString());
+                search, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
         
         Boolean hasKey = itemRedisTemplate.hasKey(expectedCacheKey).block();
-        assertTrue(Boolean.TRUE.equals(hasKey), "Cache key for list should exist: " + expectedCacheKey);
+        assertEquals(Boolean.TRUE, hasKey, "Cache key for list should exist: " + expectedCacheKey);
         
         // Проверяем TTL (должен быть около 1 часа согласно ItemService.CACHE_TTL)
         Duration expire = itemRedisTemplate.getExpire(expectedCacheKey).block();
