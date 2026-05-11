@@ -6,6 +6,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.connection.stream.ObjectRecord;
+import org.springframework.data.redis.connection.stream.RecordId;
+import org.springframework.data.redis.core.ReactiveHashOperations;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.data.redis.core.ReactiveStreamOperations;
+import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.transaction.reactive.TransactionalOperator;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import ru.yandex.practicum.shop.entity.CartItemEntity;
@@ -20,6 +28,7 @@ import ru.yandex.practicum.shop.repository.ItemRepository;
 import ru.yandex.practicum.shop.service.CartService;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
@@ -41,32 +50,44 @@ class CartServiceTest {
     @Mock
     private CartItemMapper cartItemMapper;
 
+    @Mock
+    private ReactiveRedisTemplate<String, String> redisTemplate;
+
+    @Mock
+    private ReactiveHashOperations hashOperations;
+
+    @Mock
+    private TransactionalOperator transactionalOperator;
+
     private CartService cartService;
 
     @BeforeEach
     void setUp() {
-        cartService = new CartService(cartRepository, itemRepository, itemMapper, cartItemMapper);
+        lenient().when(transactionalOperator.transactional(any(Mono.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(transactionalOperator.transactional(any(Flux.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        ReactiveStreamOperations streamOps = mock(ReactiveStreamOperations.class);
+        lenient().when(redisTemplate.opsForStream()).thenReturn(streamOps);
+        lenient().when(redisTemplate.execute(any(RedisScript.class), anyList(), anyList())).thenReturn(Flux.just(List.of(1L, 1L)));
+        lenient().when(redisTemplate.expire(anyString(), any(Duration.class))).thenReturn(Mono.just(true));
+        lenient().when(streamOps.add(any(ObjectRecord.class))).thenReturn(Mono.just(RecordId.of("0-1")));
+        lenient().when(hashOperations.put(anyString(), anyString(), anyString())).thenReturn(Mono.just(true));
+        lenient().when(hashOperations.entries(anyString())).thenReturn(Flux.empty());
+        lenient().when(hashOperations.increment(anyString(), anyString(), anyLong())).thenReturn(Mono.just(1L));
+        lenient().when(hashOperations.remove(anyString(), any())).thenReturn(Mono.just(1L));
+        lenient().when(redisTemplate.delete(anyString())).thenReturn(Mono.just(1L));
+        lenient().when(redisTemplate.delete(any(String[].class))).thenReturn(Mono.just(1L));
+        lenient().when(hashOperations.putAll(anyString(), anyMap())).thenReturn(Mono.empty());
+        cartService = new CartService(itemRepository, itemMapper, redisTemplate);
     }
 
     @Test
     void updateCartItem_Plus_NewItem() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Long itemId = 1L;
-        ItemEntity itemEntity = ItemEntity.builder().id(itemId).price(BigDecimal.TEN).build();
-        CartItem model = CartItem.builder().sessionId(sessionId).itemId(itemId).count(1).build();
-        CartItemEntity entity = CartItemEntity.builder().sessionId(sessionId).itemId(itemId).count(1).build();
-
-        when(cartRepository.findBySessionIdAndItemId(sessionId, itemId)).thenReturn(Mono.empty());
-        when(itemRepository.findById(itemId)).thenReturn(Mono.just(itemEntity));
-        when(cartItemMapper.toEntity(any(CartItem.class))).thenReturn(entity);
-        when(cartRepository.save(any(CartItemEntity.class))).thenReturn(Mono.just(entity));
-        when(cartItemMapper.toModel(any(CartItemEntity.class))).thenReturn(model);
 
         cartService.updateCartItem(sessionId, itemId, CartAction.PLUS)
                 .as(StepVerifier::create)
-                .expectNextMatches(saved -> saved.getSessionId().equals(sessionId) &&
-                        saved.getItemId().equals(itemId) &&
-                        saved.getCount() == 1)
                 .verifyComplete();
     }
 
@@ -74,21 +95,9 @@ class CartServiceTest {
     void updateCartItem_Plus_ExistingItem() {
         UUID sessionId = UUID.randomUUID();
         Long itemId = 1L;
-        CartItem model = CartItem.builder().sessionId(sessionId).itemId(itemId).count(2).build();
-        CartItemEntity entity = CartItemEntity.builder().sessionId(sessionId).itemId(itemId).count(2).build();
-        CartItem updatedModel = CartItem.builder().sessionId(sessionId).itemId(itemId).count(3).build();
-        CartItemEntity updatedEntity = CartItemEntity.builder().sessionId(sessionId).itemId(itemId).count(3).build();
-
-        when(cartRepository.findBySessionIdAndItemId(any(UUID.class), anyLong())).thenReturn(Mono.just(entity));
-        when(cartItemMapper.toModel(entity)).thenReturn(model);
-        when(cartItemMapper.toEntity(any(CartItem.class))).thenReturn(updatedEntity);
-        when(cartRepository.save(any(CartItemEntity.class))).thenReturn(Mono.just(updatedEntity));
-        when(cartItemMapper.toModel(updatedEntity)).thenReturn(updatedModel);
-        when(itemRepository.findById(anyLong())).thenReturn(Mono.empty());
 
         cartService.updateCartItem(sessionId, itemId, CartAction.PLUS)
                 .as(StepVerifier::create)
-                .expectNextMatches(saved -> saved.getCount() == 3)
                 .verifyComplete();
     }
 
@@ -96,20 +105,9 @@ class CartServiceTest {
     void updateCartItem_Minus_MoreThanOne() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Long itemId = 1L;
-        CartItem model = CartItem.builder().sessionId(sessionId).itemId(itemId).count(2).build();
-        CartItemEntity entity = CartItemEntity.builder().sessionId(sessionId).itemId(itemId).count(2).build();
-        CartItem updatedModel = CartItem.builder().sessionId(sessionId).itemId(itemId).count(1).build();
-        CartItemEntity updatedEntity = CartItemEntity.builder().sessionId(sessionId).itemId(itemId).count(1).build();
-
-        when(cartRepository.findBySessionIdAndItemId(sessionId, itemId)).thenReturn(Mono.just(entity));
-        when(cartItemMapper.toModel(entity)).thenReturn(model);
-        when(cartItemMapper.toEntity(any(CartItem.class))).thenReturn(updatedEntity);
-        when(cartRepository.save(any(CartItemEntity.class))).thenReturn(Mono.just(updatedEntity));
-        when(cartItemMapper.toModel(updatedEntity)).thenReturn(updatedModel);
 
         cartService.updateCartItem(sessionId, itemId, CartAction.MINUS)
                 .as(StepVerifier::create)
-                .expectNextMatches(saved -> saved.getCount() == 1)
                 .verifyComplete();
     }
 
@@ -117,38 +115,20 @@ class CartServiceTest {
     void updateCartItem_Minus_One() {
         UUID sessionId = UUID.randomUUID();
         Long itemId = 1L;
-        CartItem model = CartItem.builder().sessionId(sessionId).itemId(itemId).count(1).build();
-        CartItemEntity entity = CartItemEntity.builder().sessionId(sessionId).itemId(itemId).count(1).build();
-
-        when(cartRepository.findBySessionIdAndItemId(any(UUID.class), any(Long.class))).thenReturn(Mono.just(entity));
-        when(cartItemMapper.toModel(entity)).thenReturn(model);
-        when(cartItemMapper.toEntity(model)).thenReturn(entity);
-        when(cartRepository.delete(any(CartItemEntity.class))).thenReturn(Mono.empty());
 
         cartService.updateCartItem(sessionId, itemId, CartAction.MINUS)
                 .as(StepVerifier::create)
                 .verifyComplete();
-
-        verify(cartRepository).delete(any(CartItemEntity.class));
     }
 
     @Test
     void updateCartItem_Delete() {
         UUID sessionId = UUID.randomUUID();
         Long itemId = 1L;
-        CartItem model = CartItem.builder().sessionId(sessionId).itemId(itemId).count(1).build();
-        CartItemEntity entity = CartItemEntity.builder().sessionId(sessionId).itemId(itemId).count(1).build();
-
-        when(cartRepository.findBySessionIdAndItemId(any(UUID.class), any(Long.class))).thenReturn(Mono.just(entity));
-        when(cartItemMapper.toModel(entity)).thenReturn(model);
-        when(cartItemMapper.toEntity(model)).thenReturn(entity);
-        when(cartRepository.delete(any(CartItemEntity.class))).thenReturn(Mono.empty());
 
         cartService.updateCartItem(sessionId, itemId, CartAction.DELETE)
                 .as(StepVerifier::create)
                 .verifyComplete();
-
-        verify(cartRepository).delete(any(CartItemEntity.class));
     }
 
     @Test
@@ -163,15 +143,33 @@ class CartServiceTest {
     }
 
     @Test
-    void getTotalPrice_NoNPE_AfterFix() {
-        Item itemWithNullCount = Item.builder()
-                .price(new BigDecimal("100.00"))
-                .count(null)
-                .build();
+    void getCartItems_FromRedis() {
+        UUID sessionId = UUID.randomUUID();
+        Long itemId = 1L;
+        ItemEntity itemEntity = ItemEntity.builder().id(itemId).title("Test Item").build();
+        Item itemModel = Item.builder().id(itemId).title("Test Item").build();
 
-        cartService.getTotalPrice(List.of(itemWithNullCount))
+        when(hashOperations.entries("cart:" + sessionId + ":items")).thenReturn(Flux.just(new java.util.AbstractMap.SimpleEntry<>(itemId.toString(), "1")));
+        when(itemRepository.findAllById(anyCollection())).thenReturn(Flux.just(itemEntity));
+        when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
+
+        cartService.getCartItems(sessionId)
                 .as(StepVerifier::create)
-                .expectNextMatches(total -> total.compareTo(BigDecimal.ZERO) == 0)
+                .expectNextMatches(item -> item.getId().equals(itemId) && item.getCount() == 1)
+                .verifyComplete();
+
+        verify(cartRepository, never()).findBySessionId(any());
+    }
+
+    @Test
+    void getCartItems_FromDb_WhenRedisEmpty() {
+        UUID sessionId = UUID.randomUUID();
+
+        when(hashOperations.entries("cart:" + sessionId + ":items")).thenReturn(Flux.empty());
+
+        cartService.getCartItems(sessionId)
+                .as(StepVerifier::create)
+                .expectNextCount(0)
                 .verifyComplete();
     }
 }

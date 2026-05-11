@@ -3,6 +3,7 @@ package ru.yandex.practicum.shop.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.client.PaymentClient;
@@ -33,6 +34,7 @@ public class OrderService {
     private final ItemMapper itemMapper;
     private final OrderMapper orderMapper;
     private final PaymentClient paymentClient;
+    private final TransactionalOperator transactionalOperator;
 
     public Mono<BigDecimal> getBalance(UUID sessionId) {
         return paymentClient.getBalance(sessionId);
@@ -48,7 +50,6 @@ public class OrderService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    @Transactional
     public Mono<Order> buy(UUID sessionId) {
         return calculateTotal(sessionId)
                 .flatMap(total -> getBalance(sessionId)
@@ -65,10 +66,10 @@ public class OrderService {
 
                     return paymentClient.pay(new PaymentRequest(sessionId.toString(), total), sessionId)
                             .then(createOrder(sessionId));
-                });
+                })
+                .as(transactionalOperator::transactional);
     }
 
-    @Transactional
     public Mono<Order> createOrder(UUID sessionId) {
         return itemRepository.findBySessionId(sessionId)
                 .collectList()

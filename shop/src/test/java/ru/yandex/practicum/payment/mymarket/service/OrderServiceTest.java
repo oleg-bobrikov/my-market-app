@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -57,8 +58,17 @@ class OrderServiceTest {
     @Mock
     private PaymentClient paymentClient;
 
+    @Mock
+    private TransactionalOperator transactionalOperator;
+
     @InjectMocks
     private OrderService orderService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        lenient().when(transactionalOperator.transactional(any(Mono.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(transactionalOperator.transactional(any(Flux.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    }
 
     @Test
     void createOrder_Success() {

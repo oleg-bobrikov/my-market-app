@@ -1,92 +1,147 @@
 package ru.yandex.practicum.shop.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.stream.ObjectRecord;
+import org.springframework.data.redis.core.ReactiveHashOperations;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.data.redis.core.ReactiveStreamOperations;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import ru.yandex.practicum.shop.entity.CartItemEntity;
-import ru.yandex.practicum.shop.mapper.CartItemMapper;
+import ru.yandex.practicum.shop.dto.CartEventDto;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.model.CartAction;
-import ru.yandex.practicum.shop.model.CartItem;
 import ru.yandex.practicum.shop.model.Item;
-import ru.yandex.practicum.shop.repository.CartRepository;
 import ru.yandex.practicum.shop.repository.ItemRepository;
 
+
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 public class CartService {
-    private final CartRepository cartRepository;
     private final ItemRepository itemRepository;
     private final ItemMapper itemMapper;
-    private final CartItemMapper cartItemMapper;
+    private final ReactiveRedisTemplate<String, String> redisTemplate;
+    private final ReactiveHashOperations<String, String, String> hashOps;
+    private final ReactiveStreamOperations<String, String, String> streamOps;
+
+    private static final String CART_PREFIX = "cart:";
+    private static final String CART_STREAM = "cart-events";
+
 
     @Autowired
-    public CartService(CartRepository cartRepository, ItemRepository itemRepository, ItemMapper itemMapper, CartItemMapper cartItemMapper) {
-        this.cartRepository = cartRepository;
+    public CartService(ItemRepository itemRepository,
+                       ItemMapper itemMapper,
+                       ReactiveRedisTemplate<String, String> redisTemplate) {
         this.itemRepository = itemRepository;
         this.itemMapper = itemMapper;
-        this.cartItemMapper = cartItemMapper;
+        this.redisTemplate = redisTemplate;
+        this.hashOps = redisTemplate.opsForHash();
+        this.streamOps = redisTemplate.opsForStream();
     }
 
-    @Transactional
-    public Mono<CartItem> updateCartItem(UUID sessionId, Long itemId, CartAction action) {
-        return cartRepository.findBySessionIdAndItemId(sessionId, itemId)
-                .map(cartItemMapper::toModel)
-                .flatMap(cartItem -> handleExisting(cartItem, action))
-                .switchIfEmpty(handleNew(sessionId, itemId, action));
+    private static final String CART_ITEMS_SUFFIX = ":items";
+    private static final String CART_VERSION_SUFFIX = ":version";
+
+    private String itemsKey(UUID sessionId) {
+        return CART_PREFIX + sessionId + CART_ITEMS_SUFFIX;
     }
 
-    private Mono<CartItem> handleExisting(CartItem cartItem, CartAction action) {
-        return switch (action) {
-            case PLUS -> {
-                cartItem.setCount(cartItem.getCount() + 1);
-                yield cartRepository.save(cartItemMapper.toEntity(cartItem)).map(cartItemMapper::toModel);
-            }
-            case MINUS -> {
-                if (cartItem.getCount() > 1) {
-                    cartItem.setCount(cartItem.getCount() - 1);
-                    yield cartRepository.save(cartItemMapper.toEntity(cartItem)).map(cartItemMapper::toModel);
-                } else {
-                    yield cartRepository.delete(cartItemMapper.toEntity(cartItem)).then(Mono.empty());
-                }
-            }
-            case DELETE -> cartRepository.delete(cartItemMapper.toEntity(cartItem)).then(Mono.empty());
-        };
+    private String versionKey(UUID sessionId) {
+        return CART_PREFIX + sessionId + CART_VERSION_SUFFIX;
     }
 
-    private Mono<CartItem> handleNew(UUID sessionId, Long itemId, CartAction action) {
-        if (action != CartAction.PLUS) {
-            return Mono.empty();
-        }
+    public Mono<Void> updateCartItem(UUID sessionId, Long itemId, CartAction action) {
+        String itemsKey = itemsKey(sessionId);
+        String versionKey = versionKey(sessionId);
+        String itemIdStr = itemId.toString();
 
-        return itemRepository.findById(itemId)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("Item not found")))
-                .flatMap(item -> {
-                    CartItem cartItem = CartItem.builder()
-                            .sessionId(sessionId)
-                            .itemId(itemId)
-                            .count(1)
-                            .build();
+        String script = """
+                   local items_key = KEYS[1]
+                   local version_key = KEYS[2]
+                
+                   local item_id = ARGV[1]
+                   local action = ARGV[2]
+                
+                   local count = tonumber(redis.call('HGET', items_key, item_id)) or 0
+                   local version = tonumber(redis.call('GET', version_key)) or 0
+                
+                   local new_version = version + 1
+                   local new_count = count
+                
+                   local should_delete = false
+                
+                   if action == 'PLUS' then
+                       new_count = count + 1
+                   elseif action == 'MINUS' then
+                       new_count = count - 1
+                   elseif action == 'DELETE' then
+                       should_delete = true
+                   end
+                
+                   if should_delete or new_count <= 0 then
+                       redis.call('HDEL', items_key, item_id)
+                       redis.call('SET', version_key, new_version)
+                       return {0, new_version}
+                   end
+                
+                   redis.call('HSET', items_key, item_id, new_count)
+                   redis.call('SET', version_key, new_version)
+                
+                   return {new_count, new_version}
+                """;
 
-                    return cartRepository.save(cartItemMapper.toEntity(cartItem)).map(cartItemMapper::toModel);
-                });
+        return redisTemplate.execute(
+                        org.springframework.data.redis.core.script.RedisScript.of(script, List.class),
+                        List.of(itemsKey, versionKey),
+                        List.of(itemIdStr, action.name())
+                )
+                .next()
+                .flatMap(result -> {
+                    if (result == null || result.size() < 2) {
+                        return Mono.error(new RuntimeException("Invalid Lua script result"));
+                    }
+                    Long newVersion = ((Number) result.get(1)).longValue();
+                    CartEventDto event = new CartEventDto(sessionId, itemId, action, newVersion, Instant.now());
+                    String vKey = versionKey(sessionId);
+                    return redisTemplate.expire(itemsKey, Duration.ofDays(7))
+                            .then(redisTemplate.expire(vKey, Duration.ofDays(7)))
+                            .onErrorResume(e -> Mono.just(true))
+                            .then(streamOps.add(ObjectRecord.create(CART_STREAM, event)));
+                })
+                .then();
     }
 
     public Flux<Item> getCartItems(UUID sessionId) {
-        return cartRepository.findBySessionId(sessionId)
-                .collectMap(CartItemEntity::getItemId, CartItemEntity::getCount)
-                .flatMapMany(cartCounts ->
-                        itemRepository.findAllById(cartCounts.keySet())
-                                .map(item -> {
-                                    Item model = itemMapper.toModel(item);
-                                    model.setCount(cartCounts.getOrDefault(item.getId(), 0));
-                                    return model;
-                                })
+        return getCartCounts(sessionId)
+                .flatMapMany(counts -> {
+                    if (counts.isEmpty()) {
+                        return Flux.empty();
+                    }
+
+                    return itemRepository.findAllById(counts.keySet())
+                            .map(entity -> {
+                                Item item = itemMapper.toModel(entity);
+                                item.setCount(counts.getOrDefault(entity.getId(), 0));
+                                return item;
+                            });
+                });
+    }
+
+    public Mono<java.util.Map<Long, Integer>> getCartCounts(UUID sessionId) {
+        if (sessionId == null) {
+            return Mono.just(java.util.Map.of());
+        }
+        String key = itemsKey(sessionId);
+
+        return hashOps.entries(key)
+                .collectMap(
+                        entry -> Long.parseLong(entry.getKey()),
+                        entry -> Integer.parseInt(entry.getValue())
                 );
     }
 

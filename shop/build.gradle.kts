@@ -33,8 +33,6 @@ dependencies {
     runtimeOnly("org.postgresql:r2dbc-postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    implementation("org.springframework.boot:spring-boot-starter-data-redis-reactive-test")
-    testImplementation("com.github.codemonstur:embedded-redis:1.4.3")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.mockito:mockito-core:5.11.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

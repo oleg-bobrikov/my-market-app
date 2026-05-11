@@ -15,16 +15,18 @@ import ru.yandex.practicum.shop.entity.CartItemEntity;
 import ru.yandex.practicum.shop.entity.ItemEntity;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.model.Item;
-import ru.yandex.practicum.shop.repository.CartRepository;
 import ru.yandex.practicum.shop.repository.ItemRepository;
+import ru.yandex.practicum.shop.service.CartService;
 import ru.yandex.practicum.shop.service.ItemService;
 
 import java.math.BigDecimal;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static reactor.core.publisher.Mono.just;
 
 @ExtendWith(MockitoExtension.class)
 class ItemServiceTest {
@@ -33,7 +35,7 @@ class ItemServiceTest {
     private ItemRepository itemRepository;
 
     @Mock
-    private CartRepository cartRepository;
+    private CartService cartService;
 
     @Mock
     private ItemMapper itemMapper;
@@ -58,7 +60,7 @@ class ItemServiceTest {
                 .build();
 
         when(itemRepository.findAll(pageable)).thenReturn(Flux.just(itemEntity));
-        when(cartRepository.findBySessionId(sessionId)).thenReturn(Flux.just(cartItemEntity));
+        when(cartService.getCartCounts(sessionId)).thenReturn(just(Map.of(1L, 5)));
         when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
 
         itemService.getItems(search, sessionId, pageable)
@@ -79,7 +81,7 @@ class ItemServiceTest {
 
         when(itemRepository.searchByTitleOrDescription(eq("%phone%"), eq(pageable)))
                 .thenReturn(Flux.just(itemEntity));
-        when(cartRepository.findBySessionId(sessionId)).thenReturn(Flux.empty());
+        when(cartService.getCartCounts(sessionId)).thenReturn(just(Map.of()));
         when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
 
         itemService.getItems(search, sessionId, pageable)
@@ -102,7 +104,7 @@ class ItemServiceTest {
 
         when(itemRepository.searchByTitleOrDescription(eq("%phone%"), eq(pageable)))
                 .thenReturn(Flux.just(itemEntity));
-        when(cartRepository.findBySessionId(sessionId)).thenReturn(Flux.empty());
+        when(cartService.getCartCounts(sessionId)).thenReturn(just(Map.of()));
         when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
 
         itemService.getItems(search, sessionId, pageable)

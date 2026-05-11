@@ -9,7 +9,6 @@ import ru.yandex.practicum.shop.model.Item;
 import ru.yandex.practicum.shop.entity.CartItemEntity;
 import ru.yandex.practicum.shop.entity.ItemEntity;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
-import ru.yandex.practicum.shop.repository.CartRepository;
 import ru.yandex.practicum.shop.repository.ItemRepository;
 
 import java.util.Map;
@@ -18,13 +17,13 @@ import java.util.UUID;
 @Service
 public class ItemService {
     private final ItemRepository itemRepository;
-    private final CartRepository cartRepository;
+    private final CartService cartService;
     private final ItemMapper itemMapper;
 
     @Autowired
-    public ItemService(ItemRepository itemRepository, CartRepository cartRepository, ItemMapper itemMapper) {
+    public ItemService(ItemRepository itemRepository, CartService cartService, ItemMapper itemMapper) {
         this.itemRepository = itemRepository;
-        this.cartRepository = cartRepository;
+        this.cartService = cartService;
         this.itemMapper = itemMapper;
     }
 
@@ -38,19 +37,7 @@ public class ItemService {
             items = itemRepository.findAll(pageable);
         }
 
-        Mono<Map<Long, Integer>> cartCountByItemId;
-
-        if (sessionId != null ) {
-            cartCountByItemId = cartRepository.findBySessionId(sessionId)
-                    .collectMap(
-                            CartItemEntity::getItemId,
-                            CartItemEntity::getCount
-                    );
-        } else {
-            cartCountByItemId = Mono.just(Map.of());
-        }
-
-        return cartCountByItemId.flatMapMany(cartCounts ->
+        return cartService.getCartCounts(sessionId).flatMapMany(cartCounts ->
                 items.map(item -> {
                     Item model = itemMapper.toModel(item);
                     model.setCount(cartCounts.getOrDefault(item.getId(), 0));
@@ -60,11 +47,15 @@ public class ItemService {
     }
 
     public Mono<Item> findByItemIdAndSessionId(Long id, UUID sessionId) {
-        if (sessionId != null) {
-            return itemRepository.findByItemIdAndSessionId(id, sessionId)
-                    .map(itemMapper::toModel);
-        } else {
-            return Mono.empty();
-        }
+        Mono<Integer> countMono = cartService.getCartCounts(sessionId)
+                .map(counts -> counts.getOrDefault(id, 0));
+
+        return itemRepository.findById(id)
+                .zipWith(countMono)
+                .map(tuple -> {
+                    Item model = itemMapper.toModel(tuple.getT1());
+                    model.setCount(tuple.getT2());
+                    return model;
+                });
     }
 }
