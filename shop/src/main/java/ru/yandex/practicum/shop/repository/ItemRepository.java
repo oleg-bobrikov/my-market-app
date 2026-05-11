@@ -7,8 +7,6 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import ru.yandex.practicum.shop.entity.ItemEntity;
 
-import java.util.UUID;
-
 @Repository
 public interface ItemRepository extends ReactiveCrudRepository<ItemEntity, Long> {
     @Query("""

@@ -43,7 +43,6 @@ public class CartRedisInitializer {
                    local item_id = ARGV[1]
                    local count = ARGV[2]
                    local new_version = ARGV[3]
-                   local ttl = ARGV[4]
                 
                    local current_v = redis.call('GET', version_key)
                 
@@ -51,8 +50,8 @@ public class CartRedisInitializer {
                        redis.call('HSET', items_key, item_id, count)
                        redis.call('SET', version_key, new_version)
                 
-                       redis.call('EXPIRE', items_key, ttl)
-                       redis.call('EXPIRE', version_key, ttl)
+                       redis.call('EXPIRE', items_key, 604800)
+                       redis.call('EXPIRE', version_key, 604800)
                    end
                 """;
 

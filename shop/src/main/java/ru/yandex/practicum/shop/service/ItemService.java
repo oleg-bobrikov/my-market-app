@@ -1,6 +1,5 @@
 package ru.yandex.practicum.shop.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -23,7 +22,6 @@ public class ItemService {
     private static final String ITEM_CACHE_PREFIX = "item:";
     private static final Duration CACHE_TTL = Duration.ofMinutes(2);
 
-    @Autowired
     public ItemService(ItemRepository itemRepository,
                        CartService cartService,
                        ItemMapper itemMapper,

@@ -1,17 +1,14 @@
 package ru.yandex.practicum.shop.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.connection.stream.ObjectRecord;
 import org.springframework.data.redis.core.ReactiveHashOperations;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.ReactiveStreamOperations;
-import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.dto.CartEventDto;
 import ru.yandex.practicum.shop.model.CartAction;
 import ru.yandex.practicum.shop.model.Item;
-
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -28,7 +25,6 @@ public class CartService {
     private static final String CART_PREFIX = "cart:";
     private static final String CART_STREAM = "cart-events";
 
-    @Autowired
     public CartService(ReactiveRedisTemplate<String, String> redisTemplate) {
         this.redisTemplate = redisTemplate;
         this.hashOps = redisTemplate.opsForHash();
@@ -88,7 +84,7 @@ public class CartService {
                 """;
 
         return redisTemplate.execute(
-                        RedisScript.<List<?>>of(script, (Class<List<?>>) (Class<?>) List.class),
+                        org.springframework.data.redis.core.script.RedisScript.<List<?>>of(script, (Class<List<?>>) (Class<?>) List.class),
                         List.of(itemsKey, versionKey),
                         List.of(itemIdStr, action.name())
                 )
