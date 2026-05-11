@@ -16,7 +16,7 @@ import static org.mockito.Mockito.*;
 public class OrderControllerTest extends BaseWebFluxTest {
 
     @Test
-    public void testBuyRedirectsToOrder() {
+    public void buy_WhenSuccessful_RedirectsToOrder() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         BigDecimal total = BigDecimal.valueOf(100);
         BigDecimal balance = BigDecimal.valueOf(200);
@@ -34,7 +34,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
     }
 
     @Test
-    public void testBuyInsufficientBalance() {
+    public void buy_WhenBalanceInsufficient_ReturnsError() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         BigDecimal total = BigDecimal.valueOf(200);
 
@@ -53,7 +53,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
     }
 
     @Test
-    public void testBuyServiceUnavailable() {
+    public void buy_WhenServiceUnavailable_ReturnsError() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         BigDecimal total = BigDecimal.valueOf(100);
 
@@ -72,7 +72,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
     }
 
     @Test
-    public void testGetOrderReturnsOrderView() {
+    public void getOrder_WhenOrderExists_ReturnsOrderView() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Order order = Order.builder().id(1L).total(BigDecimal.valueOf(100)).build();
         when(orderService.getOrderByIdAndSessionId(1L, sessionId)).thenReturn(Mono.just(order));
@@ -85,7 +85,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
     }
 
     @Test
-    public void testGetAllOrdersReturnsOrdersView() {
+    public void getAllOrders_WhenOrdersExist_ReturnsOrdersView() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Order order = Order.builder().id(1L).total(BigDecimal.valueOf(100)).build();
         when(orderService.findBySessionId(sessionId)).thenReturn(Flux.just(order));

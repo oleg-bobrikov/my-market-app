@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class ItemPaginationTest extends BaseIntegrationTest {
 
     @Test
-    void testPaginationPageSize2() {
+    void getItems_WhenPageSizeLimited_ReturnsPaginatedItems() {
         webTestClient.get()
                 .uri("/items?search=&sort=ALPHA&pageSize=2&pageNumber=1")
                 .exchange()
@@ -25,7 +25,7 @@ public class ItemPaginationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void testPaginationSecondPage() {
+    void getItems_WhenSecondPageRequested_ReturnsDifferentItems() {
         // Сначала получаем первую страницу, чтобы знать, какие там товары
         final List<String> firstPageTitles = new java.util.ArrayList<>();
         webTestClient.get()

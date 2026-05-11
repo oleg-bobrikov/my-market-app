@@ -29,7 +29,7 @@ class PaymentControllerTest {
     private PaymentService paymentService;
 
     @Test
-    void payOrder_Success_Returns200() {
+    void pay_WhenSuccessful_ReturnsOk() {
         UUID sessionId = UUID.randomUUID();
         PaymentRequest request = new PaymentRequest("order-1", new BigDecimal("100.00"));
         PaymentResponse response = new PaymentResponse(PaymentStatus.SUCCESS, "order-1", new BigDecimal("900.00"));
@@ -51,7 +51,7 @@ class PaymentControllerTest {
     }
 
     @Test
-    void payOrder_InsufficientFunds_Returns400() {
+    void pay_WhenInsufficientFunds_ReturnsBadRequest() {
         UUID sessionId = UUID.randomUUID();
         PaymentRequest request = new PaymentRequest("order-1", new BigDecimal("1000.00"));
 

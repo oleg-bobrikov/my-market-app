@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 public class ItemIntegrationTest extends BaseIntegrationTest {
 
     @Test
-    void testAlphaSorting() {
+    void getItems_WhenSortAlpha_ReturnsItemsSortedByTitle() {
         webTestClient.get()
                 .uri("/items?search=&sort=ALPHA&pageSize=100")
                 .exchange()

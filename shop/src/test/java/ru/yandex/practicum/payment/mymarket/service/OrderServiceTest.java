@@ -26,6 +26,7 @@ import ru.yandex.practicum.shop.repository.CartRepository;
 import ru.yandex.practicum.shop.repository.ItemRepository;
 import ru.yandex.practicum.shop.repository.OrderItemRepository;
 import ru.yandex.practicum.shop.repository.OrderRepository;
+import ru.yandex.practicum.shop.service.CartService;
 import ru.yandex.practicum.shop.service.OrderService;
 
 import java.math.BigDecimal;
@@ -59,6 +60,9 @@ class OrderServiceTest {
     private PaymentClient paymentClient;
 
     @Mock
+    private CartService cartService;
+
+    @Mock
     private TransactionalOperator transactionalOperator;
 
     @InjectMocks
@@ -71,20 +75,20 @@ class OrderServiceTest {
     }
 
     @Test
-    void createOrder_Success() {
+    void createOrder_WhenSuccessful_CreatesOrder() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        ItemEntity itemEntity = ItemEntity.builder()
-                .id(1L)
-                .price(new BigDecimal("100.00"))
-                .count(2)
-                .build();
+        Item item = new Item();
+        item.setId(1L);
+        item.setPrice(new BigDecimal("100.00"));
+        item.setCount(2);
         
         Order model = Order.builder().sessionId(sessionId).total(new BigDecimal("200.00")).build();
         OrderEntity entity = OrderEntity.builder().sessionId(sessionId).total(new BigDecimal("200.00")).build();
         Order savedModel = Order.builder().id(10L).sessionId(sessionId).total(new BigDecimal("200.00")).build();
         OrderEntity savedEntity = OrderEntity.builder().id(10L).sessionId(sessionId).total(new BigDecimal("200.00")).build();
 
-        when(itemRepository.findBySessionId(sessionId)).thenReturn(Flux.just(itemEntity));
+        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(item));
+        when(cartService.getTotalPrice(anyList())).thenReturn(Mono.just(new BigDecimal("200.00")));
         when(orderMapper.toEntity(any(Order.class))).thenReturn(entity);
         when(orderRepository.save(any(OrderEntity.class))).thenReturn(Mono.just(savedEntity));
         when(orderMapper.toModel(savedEntity)).thenReturn(savedModel);
@@ -103,9 +107,9 @@ class OrderServiceTest {
     }
 
     @Test
-    void createOrder_ThrowsException_WhenCartIsEmpty() {
+    void createOrder_WhenCartIsEmpty_ThrowsException() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        when(itemRepository.findBySessionId(sessionId)).thenReturn(Flux.empty());
+        when(cartService.getCartItems(sessionId)).thenReturn(Flux.empty());
 
         orderService.createOrder(sessionId)
                 .as(StepVerifier::create)
@@ -116,7 +120,7 @@ class OrderServiceTest {
     }
 
     @Test
-    void getOrderItems_ShouldPopulateCount() {
+    void getOrderItems_WhenItemsExist_PopulatesCount() {
         Long orderId = 10L;
         Long itemId = 1L;
         int count = 5;
@@ -147,19 +151,15 @@ class OrderServiceTest {
     }
 
     @Test
-    void buy_Success() {
+    void buy_WhenPaymentSuccessful_CreatesOrder() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        ItemEntity itemEntity = ItemEntity.builder()
-                .id(1L)
-                .price(new BigDecimal("100.00"))
-                .count(2)
-                .build();
         BigDecimal total = new BigDecimal("200.00");
         BigDecimal balance = new BigDecimal("300.00");
         Order savedModel = Order.builder().id(10L).sessionId(sessionId).total(total).build();
         OrderEntity savedEntity = OrderEntity.builder().id(10L).sessionId(sessionId).total(total).build();
 
-        when(itemRepository.findBySessionId(sessionId)).thenReturn(Flux.just(itemEntity));
+        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(new Item()));
+        when(cartService.getTotalPrice(anyList())).thenReturn(Mono.just(total));
         when(paymentClient.getBalance(sessionId)).thenReturn(Mono.just(balance));
         when(paymentClient.pay(any(PaymentRequest.class), eq(sessionId))).thenReturn(Mono.empty());
         when(orderMapper.toEntity(any(Order.class))).thenReturn(new OrderEntity());
@@ -176,16 +176,13 @@ class OrderServiceTest {
     }
 
     @Test
-    void buy_InsufficientFunds() {
+    void buy_WhenBalanceInsufficient_ThrowsException() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        ItemEntity itemEntity = ItemEntity.builder()
-                .id(1L)
-                .price(new BigDecimal("100.00"))
-                .count(2)
-                .build();
+        BigDecimal total = new BigDecimal("200.00");
         BigDecimal balance = new BigDecimal("150.00");
 
-        when(itemRepository.findBySessionId(sessionId)).thenReturn(Flux.just(itemEntity));
+        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(new Item()));
+        when(cartService.getTotalPrice(anyList())).thenReturn(Mono.just(total));
         when(paymentClient.getBalance(sessionId)).thenReturn(Mono.just(balance));
 
         orderService.buy(sessionId)
@@ -195,15 +192,12 @@ class OrderServiceTest {
     }
 
     @Test
-    void buy_PaymentServiceError() {
+    void buy_WhenPaymentServiceFails_ThrowsException() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        ItemEntity itemEntity = ItemEntity.builder()
-                .id(1L)
-                .price(new BigDecimal("100.00"))
-                .count(2)
-                .build();
+        BigDecimal total = new BigDecimal("200.00");
 
-        when(itemRepository.findBySessionId(sessionId)).thenReturn(Flux.just(itemEntity));
+        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(new Item()));
+        when(cartService.getTotalPrice(anyList())).thenReturn(Mono.just(total));
         when(paymentClient.getBalance(sessionId)).thenReturn(Mono.error(new RuntimeException("Conn error")));
 
         orderService.buy(sessionId)
@@ -213,7 +207,7 @@ class OrderServiceTest {
     }
 
     @Test
-    void getOrderByIdAndSessionId_Success() {
+    void getOrderByIdAndSessionId_WhenOrderExists_ReturnsOrder() {
         Long orderId = 1L;
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         OrderEntity entity = OrderEntity.builder().id(orderId).sessionId(sessionId).build();

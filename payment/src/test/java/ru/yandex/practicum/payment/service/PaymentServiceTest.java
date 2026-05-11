@@ -63,7 +63,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    void getBalance_WhenAccountExists_ReturnsBalanceFromAccount() {
+    void getBalance_WhenAccountExists_ReturnsBalance() {
         BigDecimal amount = new BigDecimal("100.00");
         AccountEntity account = new AccountEntity(sessionId, amount);
         when(accountRepository.findById(sessionId)).thenReturn(Mono.just(account));
@@ -76,7 +76,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    void payOrder_ConcurrentCalls_CreatesAccountOnlyOnce() {
+    void payOrder_WhenCalledConcurrently_CreatesAccountOnlyOnce() {
         PaymentRequest paymentRequest = new PaymentRequest("order-1", new BigDecimal("1000"));
         BigDecimal defaultBalance = new BigDecimal(30_000);
 

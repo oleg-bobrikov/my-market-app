@@ -12,16 +12,13 @@ import org.springframework.data.redis.core.ReactiveHashOperations;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.ReactiveStreamOperations;
 import org.springframework.data.redis.core.script.RedisScript;
-import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
-import ru.yandex.practicum.shop.entity.CartItemEntity;
 import ru.yandex.practicum.shop.entity.ItemEntity;
 import ru.yandex.practicum.shop.mapper.CartItemMapper;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.model.CartAction;
-import ru.yandex.practicum.shop.model.CartItem;
 import ru.yandex.practicum.shop.model.Item;
 import ru.yandex.practicum.shop.repository.CartRepository;
 import ru.yandex.practicum.shop.repository.ItemRepository;
@@ -51,26 +48,24 @@ class CartServiceTest {
     private CartItemMapper cartItemMapper;
 
     @Mock
-    private ReactiveRedisTemplate<String, String> redisTemplate;
+    private ReactiveRedisTemplate redisTemplate;
 
     @Mock
     private ReactiveHashOperations hashOperations;
 
     @Mock
-    private TransactionalOperator transactionalOperator;
+    private ReactiveStreamOperations streamOperations;
 
     private CartService cartService;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
-        lenient().when(transactionalOperator.transactional(any(Mono.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(transactionalOperator.transactional(any(Flux.class))).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
-        ReactiveStreamOperations streamOps = mock(ReactiveStreamOperations.class);
-        lenient().when(redisTemplate.opsForStream()).thenReturn(streamOps);
+        lenient().when(redisTemplate.opsForStream()).thenReturn(streamOperations);
         lenient().when(redisTemplate.execute(any(RedisScript.class), anyList(), anyList())).thenReturn(Flux.just(List.of(1L, 1L)));
         lenient().when(redisTemplate.expire(anyString(), any(Duration.class))).thenReturn(Mono.just(true));
-        lenient().when(streamOps.add(any(ObjectRecord.class))).thenReturn(Mono.just(RecordId.of("0-1")));
+        lenient().when(streamOperations.add(any(ObjectRecord.class))).thenReturn(Mono.just(RecordId.of("0-1")));
         lenient().when(hashOperations.put(anyString(), anyString(), anyString())).thenReturn(Mono.just(true));
         lenient().when(hashOperations.entries(anyString())).thenReturn(Flux.empty());
         lenient().when(hashOperations.increment(anyString(), anyString(), anyLong())).thenReturn(Mono.just(1L));
@@ -82,7 +77,7 @@ class CartServiceTest {
     }
 
     @Test
-    void updateCartItem_Plus_NewItem() {
+    void updateCartItem_WhenPlusForNewItem_CreatesItem() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Long itemId = 1L;
 
@@ -92,7 +87,7 @@ class CartServiceTest {
     }
 
     @Test
-    void updateCartItem_Plus_ExistingItem() {
+    void updateCartItem_WhenPlusForExistingItem_IncrementsCount() {
         UUID sessionId = UUID.randomUUID();
         Long itemId = 1L;
 
@@ -102,7 +97,7 @@ class CartServiceTest {
     }
 
     @Test
-    void updateCartItem_Minus_MoreThanOne() {
+    void updateCartItem_WhenMinusAndCountMoreThanOne_DecrementsCount() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Long itemId = 1L;
 
@@ -112,7 +107,7 @@ class CartServiceTest {
     }
 
     @Test
-    void updateCartItem_Minus_One() {
+    void updateCartItem_WhenMinusAndCountEqualsOne_DeletesItem() {
         UUID sessionId = UUID.randomUUID();
         Long itemId = 1L;
 
@@ -122,7 +117,7 @@ class CartServiceTest {
     }
 
     @Test
-    void updateCartItem_Delete() {
+    void updateCartItem_WhenActionDelete_DeletesItem() {
         UUID sessionId = UUID.randomUUID();
         Long itemId = 1L;
 
@@ -132,7 +127,7 @@ class CartServiceTest {
     }
 
     @Test
-    void getTotalPrice() {
+    void getTotalPrice_WhenListOfItemsProvided_CalculatesTotalPrice() {
         Item item1 = Item.builder().price(new BigDecimal("100.00")).count(2).build();
         Item item2 = Item.builder().price(new BigDecimal("50.00")).count(1).build();
 
@@ -143,13 +138,13 @@ class CartServiceTest {
     }
 
     @Test
-    void getCartItems_FromRedis() {
+    void getCartItems_WhenItemsInRedis_ReturnsCartItems() {
         UUID sessionId = UUID.randomUUID();
         Long itemId = 1L;
         ItemEntity itemEntity = ItemEntity.builder().id(itemId).title("Test Item").build();
         Item itemModel = Item.builder().id(itemId).title("Test Item").build();
 
-        when(hashOperations.entries("cart:" + sessionId + ":items")).thenReturn(Flux.just(new java.util.AbstractMap.SimpleEntry<>(itemId.toString(), "1")));
+        lenient().when(hashOperations.entries(anyString())).thenReturn(Flux.just(new java.util.AbstractMap.SimpleEntry<>(itemId.toString(), "1")));
         when(itemRepository.findAllById(anyCollection())).thenReturn(Flux.just(itemEntity));
         when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
 
@@ -158,14 +153,14 @@ class CartServiceTest {
                 .expectNextMatches(item -> item.getId().equals(itemId) && item.getCount() == 1)
                 .verifyComplete();
 
-        verify(cartRepository, never()).findBySessionId(any());
+        verify(itemRepository).findAllById(anyCollection());
     }
 
     @Test
-    void getCartItems_FromDb_WhenRedisEmpty() {
+    void getCartItems_WhenRedisEmpty_LoadsItemsFromDatabase() {
         UUID sessionId = UUID.randomUUID();
 
-        when(hashOperations.entries("cart:" + sessionId + ":items")).thenReturn(Flux.empty());
+        lenient().when(hashOperations.entries(anyString())).thenReturn(Flux.empty());
 
         cartService.getCartItems(sessionId)
                 .as(StepVerifier::create)

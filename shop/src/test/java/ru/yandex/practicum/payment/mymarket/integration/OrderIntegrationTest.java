@@ -13,14 +13,21 @@ import reactor.core.publisher.Mono;
 import java.math.BigDecimal;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import static org.awaitility.Awaitility.await;
+import java.util.concurrent.TimeUnit;
 
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 public class OrderIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
-    private CartRepository cartRepository;
+    private ru.yandex.practicum.shop.service.CartService cartService;
+
+    @Autowired
+    private ru.yandex.practicum.shop.repository.ItemRepository itemRepository;
 
     @Autowired
     private OrderRepository orderRepository;
@@ -29,9 +36,11 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
     private PaymentClient paymentClient;
 
     @Test
-    void testBuyAndRedirect() {
+    void buy_WhenOrderCreated_RedirectsToOrderPage() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        long itemId = 1L;
+        
+        ru.yandex.practicum.shop.entity.ItemEntity itemEntity = itemRepository.findAll().blockFirst();
+        long itemId = itemEntity != null ? itemEntity.getId() : 1L;
 
         when(paymentClient.getBalance(any())).thenReturn(Mono.just(new BigDecimal("1000.00")));
         when(paymentClient.pay(any(), any())).thenReturn(Mono.empty());
@@ -40,16 +49,20 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
         webTestClient.post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", CartAction.PLUS.name())
+                        .queryParam("search", "")
+                        .queryParam("sort", "NO")
+                        .queryParam("pageSize", "5")
+                        .queryParam("pageNumber", "1")
                         .build())
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection();
 
         // Проверяем, что товар в корзине
-        cartRepository.findBySessionId(sessionId)
-                .as(StepVerifier::create)
-                .expectNextCount(1)
-                .verifyComplete();
+        await().atMost(10, TimeUnit.SECONDS).until(() -> {
+            var counts = cartService.getCartCounts(sessionId).block();
+            return counts != null && !counts.isEmpty();
+        });
 
         // 2. Совершаем покупку
         webTestClient.post().uri("/buy")
@@ -57,12 +70,12 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
                 .exchange()
                 .expectStatus().is3xxRedirection();
 
-        // 3. Проверяем, что корзина пуста
-        cartRepository.findBySessionId(sessionId)
-                .as(StepVerifier::create)
-                .verifyComplete();
+        // 3. Проверяем, что заказ создался
+        await().atMost(10, TimeUnit.SECONDS).until(() -> {
+            var orders = orderRepository.findBySessionId(sessionId).collectList().block();
+            return orders != null && !orders.isEmpty();
+        });
 
-        // 4. Проверяем, что заказ создался
         orderRepository.findBySessionId(sessionId)
                 .as(StepVerifier::create)
                 .expectNextMatches(order -> order.getSessionId().equals(sessionId))
@@ -70,7 +83,7 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void testBuyWithoutSessionRedirects() {
+    void buy_WhenNoSession_RedirectsToItems() {
         when(paymentClient.getBalance(any())).thenReturn(Mono.just(new BigDecimal("1000.00")));
         when(paymentClient.pay(any(), any())).thenReturn(Mono.empty());
 

@@ -15,7 +15,7 @@ class ItemRepositoryTest extends BaseDataR2dbcTest {
     private ItemRepository itemRepository;
 
     @Test
-    void searchByTitleOrDescription_shouldFindItemByTitle() {
+    void searchByTitleOrDescription_WhenMatchesTitle_ReturnsItem() {
         ItemEntity item = ItemEntity.builder()
                 .title("Apple iPhone 15")
                 .description("Latest smartphone")
@@ -35,7 +35,7 @@ class ItemRepositoryTest extends BaseDataR2dbcTest {
     }
 
     @Test
-    void searchByTitleOrDescription_shouldFindItemByDescription() {
+    void searchByTitleOrDescription_WhenMatchesDescription_ReturnsItem() {
         ItemEntity item = ItemEntity.builder()
                 .title("Laptop")
                 .description("Powerful device with M2 chip")
@@ -55,7 +55,7 @@ class ItemRepositoryTest extends BaseDataR2dbcTest {
     }
 
     @Test
-    void searchByTitleOrDescription_shouldBeCaseInsensitive() {
+    void searchByTitleOrDescription_WhenCalled_IsCaseInsensitive() {
         ItemEntity item = ItemEntity.builder()
                 .title("Samsung Galaxy")
                 .description("Android phone")

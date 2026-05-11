@@ -19,7 +19,7 @@ public class CartIntegrationTest extends BaseIntegrationTest {
     private CartService cartService;
 
     @Test
-    void testUpdateItemCountPlus() {
+    void updateCartItem_WhenActionPlus_IncrementsCount() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Long itemId = 1L;
 
@@ -60,7 +60,7 @@ public class CartIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void testUpdateItemCountMinus() {
+    void updateCartItem_WhenActionMinus_DecrementsCountOrDeletesItem() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         long itemId = 1L;
 
@@ -97,7 +97,7 @@ public class CartIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void testGetItemWithCount() {
+    void getItem_WhenItemInCart_ReturnsItemWithCorrectCount() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         long itemId = 1L;
 
@@ -124,7 +124,7 @@ public class CartIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void testGetCartItems() {
+    void getCartItems_WhenItemsInCart_ReturnsCartView() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         long itemId = 1L;
 
@@ -147,7 +147,7 @@ public class CartIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void testUpdateCartItemInCart() {
+    void updateCartItemInCart_WhenActionPlus_IncrementsCountInCart() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         long itemId = 1L;
 

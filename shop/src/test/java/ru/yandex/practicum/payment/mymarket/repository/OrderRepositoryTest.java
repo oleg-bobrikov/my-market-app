@@ -16,7 +16,7 @@ class OrderRepositoryTest extends BaseDataR2dbcTest {
     private OrderRepository orderRepository;
 
     @Test
-    void save_shouldPersistOrder() {
+    void save_WhenOrderProvided_PersistsOrder() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         OrderEntity order = OrderEntity.builder()
                 .sessionId(sessionId)
@@ -34,7 +34,7 @@ class OrderRepositoryTest extends BaseDataR2dbcTest {
     }
 
     @Test
-    void findByIdAndSessionId_shouldReturnOrder() {
+    void findByIdAndSessionId_WhenOrderExists_ReturnsOrder() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         OrderEntity order = OrderEntity.builder()
                 .sessionId(sessionId)
@@ -50,7 +50,7 @@ class OrderRepositoryTest extends BaseDataR2dbcTest {
     }
 
     @Test
-    void findByIdAndSessionId_shouldReturnEmpty_whenSessionIdMismatch() {
+    void findByIdAndSessionId_WhenSessionMismatch_ReturnsEmpty() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         UUID otherSessionId = UuidCreator.getTimeOrderedEpoch();
         OrderEntity order = OrderEntity.builder()

@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 public class ItemControllerTest extends BaseWebFluxTest {
 
     @Test
-    public void testSortSelectionPersists() {
+    public void getItems_WhenSortSelected_PersistsSortInView() {
         when(itemService.getItems(anyString(), any(), any())).thenReturn(Flux.empty());
 
         webTestClient.get().uri("/items?sort=ALPHA")
@@ -32,7 +32,7 @@ public class ItemControllerTest extends BaseWebFluxTest {
     }
 
     @Test
-    public void testUpdateItemCountPreservesSort() {
+    public void updateCartItem_WhenActionPlus_RedirectsToItemsWithPreservedSort() {
         when(cartService.updateCartItem(any(), any(), any())).thenReturn(Mono.empty());
 
         webTestClient.post().uri(uriBuilder -> uriBuilder.path("/items")
@@ -47,7 +47,7 @@ public class ItemControllerTest extends BaseWebFluxTest {
     }
 
     @Test
-    public void testUpdateItemCountOnPageWithFormData() {
+    public void updateCartItem_WhenActionPlusByFormData_RedirectsToItemDetails() {
         when(cartService.updateCartItem(any(), any(), any())).thenReturn(Mono.empty());
 
         webTestClient.post().uri("/items/1")

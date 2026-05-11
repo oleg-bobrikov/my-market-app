@@ -44,7 +44,7 @@ class ItemServiceTest {
     private ItemService itemService;
 
     @Test
-    void getItems_WithCartCounts() {
+    void getItems_WhenSessionExists_ReturnsItemsWithCartCounts() {
         String search = "";
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Pageable pageable = PageRequest.of(0, 10);
@@ -70,7 +70,7 @@ class ItemServiceTest {
     }
 
     @Test
-    void getItems_WithSearchAndSortByPrice() {
+    void getItems_WhenSearchAndSortByPrice_ReturnsMatchingItems() {
         String search = "phone";
         UUID sessionId = UUID.randomUUID();
         Pageable pageable = PageRequest.of(0, 10, Sort.by("price"));
@@ -93,7 +93,7 @@ class ItemServiceTest {
     }
 
     @Test
-    void getItems_WithSearchAndSortByTitle() {
+    void getItems_WhenSearchAndSortByTitle_ReturnsMatchingItems() {
         String search = "phone";
         UUID sessionId = UUID.randomUUID();
         Pageable pageable = PageRequest.of(0, 10, Sort.by("title"));

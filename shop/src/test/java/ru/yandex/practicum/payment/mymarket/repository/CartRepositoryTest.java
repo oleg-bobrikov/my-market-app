@@ -22,7 +22,7 @@ class CartRepositoryTest extends BaseDataR2dbcTest {
     private ItemRepository itemRepository;
 
     @Test
-    void findBySessionIdAndItemId_shouldFindCorrectItem() {
+    void findBySessionIdAndItemId_WhenItemExists_ReturnsCorrectItem() {
         ItemEntity item = ItemEntity.builder()
                 .title("Item 1")
                 .description("Desc")
@@ -47,7 +47,7 @@ class CartRepositoryTest extends BaseDataR2dbcTest {
     }
 
     @Test
-    void findBySessionId_shouldReturnAllItemsForSession() {
+    void findBySessionId_WhenItemsExist_ReturnsAllItemsForSession() {
         ItemEntity item1 = ItemEntity.builder().title("Item 1").description("Desc").imgPath("path").price(BigDecimal.TEN).build();
         ItemEntity item2 = ItemEntity.builder().title("Item 2").description("Desc").imgPath("path").price(BigDecimal.ONE).build();
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();

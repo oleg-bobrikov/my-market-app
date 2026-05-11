@@ -2,6 +2,8 @@ package ru.yandex.practicum.payment.mymarket.controller;
 
 import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.dto.ItemDto;
@@ -17,7 +19,7 @@ import static org.mockito.Mockito.*;
 public class CartControllerTest extends BaseWebFluxTest {
 
     @Test
-    public void testGetCartItemsReturnsCartView() {
+    public void getCartItems_WhenItemsExist_ReturnsCartView() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Item item = Item.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
         List<Item> items = List.of(item);
@@ -35,7 +37,7 @@ public class CartControllerTest extends BaseWebFluxTest {
     }
 
     @Test
-    public void testGetCartItemsCreatesSessionWhenNoSession() {
+    public void getCartItems_WhenNoSession_RedirectsToItemsAndCreatesSession() {
         when(cartService.getCartItems(any())).thenReturn(Flux.empty());
 
         webTestClient.get().uri("/cart/items")
@@ -46,7 +48,7 @@ public class CartControllerTest extends BaseWebFluxTest {
     }
 
     @Test
-    public void testUpdateCartItemRedirectsToCart() {
+    public void updateCartItem_WhenActionPlus_RedirectsToCart() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Item item = Item.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
 
@@ -66,7 +68,7 @@ public class CartControllerTest extends BaseWebFluxTest {
     }
 
     @Test
-    void testRedirectToItemsWhenCartIsEmptyOnGet() {
+    void getCartItems_WhenCartIsEmpty_RedirectsToItems() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         when(cartService.getCartItems(sessionId)).thenReturn(Flux.empty());
 
@@ -78,7 +80,7 @@ public class CartControllerTest extends BaseWebFluxTest {
     }
 
     @Test
-    public void testUpdateCartItemWithFormData() {
+    public void updateCartItem_WhenActionPlusByFormData_RedirectsToCart() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Item item = Item.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
 

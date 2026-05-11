@@ -30,6 +30,7 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final CartRepository cartRepository;
     private final ItemRepository itemRepository;
+    private final CartService cartService;
     private final ItemMapper itemMapper;
     private final OrderMapper orderMapper;
     private final PaymentClient paymentClient;
@@ -40,13 +41,9 @@ public class OrderService {
     }
 
     public Mono<BigDecimal> calculateTotal(UUID sessionId) {
-        return itemRepository.findBySessionId(sessionId)
-                .map(item -> {
-                    Integer count = item.getCount();
-                    if (count == null) count = 0;
-                    return item.getPrice().multiply(BigDecimal.valueOf(count));
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return cartService.getCartItems(sessionId)
+                .collectList()
+                .flatMap(cartService::getTotalPrice);
     }
 
     public Mono<Order> buy(UUID sessionId) {
@@ -70,42 +67,37 @@ public class OrderService {
     }
 
     public Mono<Order> createOrder(UUID sessionId) {
-        return itemRepository.findBySessionId(sessionId)
+        return cartService.getCartItems(sessionId)
                 .collectList()
                 .flatMap(items -> {
                     if (items.isEmpty()) {
                         return Mono.error(new IllegalStateException("Корзина пуста"));
                     }
 
-                    BigDecimal total = items.stream()
-                            .map(item -> {
-                                Integer count = item.getCount();
-                                if (count == null) count = 0; // Guard against null count
-                                return item.getPrice().multiply(BigDecimal.valueOf(count));
-                            })
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    return cartService.getTotalPrice(items)
+                            .flatMap(total -> {
+                                Order order = Order.builder()
+                                        .sessionId(sessionId)
+                                        .total(total)
+                                        .build();
 
-                    Order order = Order.builder()
-                            .sessionId(sessionId)
-                            .total(total)
-                            .build();
+                                return orderRepository.save(orderMapper.toEntity(order))
+                                        .map(orderMapper::toModel)
+                                        .flatMap(savedOrder -> {
+                                            var orderItems = items.stream()
+                                                    .map(item -> {
+                                                        OrderItem orderItem = new OrderItem();
+                                                        orderItem.setOrderId(savedOrder.getId());
+                                                        orderItem.setItemId(item.getId());
+                                                        Integer count = item.getCount();
+                                                        orderItem.setCount(count != null ? count : 0);
+                                                        return orderMapper.toEntity(orderItem);
+                                                    }).toList();
 
-                    return orderRepository.save(orderMapper.toEntity(order))
-                            .map(orderMapper::toModel)
-                            .flatMap(savedOrder -> {
-                                var orderItems = items.stream()
-                                        .map(item -> {
-                                            OrderItem orderItem = new OrderItem();
-                                            orderItem.setOrderId(savedOrder.getId());
-                                            orderItem.setItemId(item.getId());
-                                            Integer count = item.getCount();
-                                            orderItem.setCount(count != null ? count : 0);
-                                            return orderMapper.toEntity(orderItem);
-                                        }).toList();
-
-                                return orderItemRepository.saveAll(Flux.fromIterable(orderItems))
-                                        .then(cartRepository.deleteBySessionId(sessionId))
-                                        .thenReturn(savedOrder);
+                                            return orderItemRepository.saveAll(Flux.fromIterable(orderItems))
+                                                    .then(cartRepository.deleteBySessionId(sessionId))
+                                                    .thenReturn(savedOrder);
+                                        });
                             });
                 });
     }

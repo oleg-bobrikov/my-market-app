@@ -209,6 +209,8 @@ docker-compose up -d
 
 ## 🧪 Тестирование
 
+Для именования тестов используется паттерн: `method_WhenCondition_Result`.
+
 Проект содержит:
 * Интеграционные тесты (`BaseIntegrationTest`).
 * Тесты сервисов (`CartServiceTest`, `ItemServiceTest`, `OrderServiceTest`) с использованием моков.
