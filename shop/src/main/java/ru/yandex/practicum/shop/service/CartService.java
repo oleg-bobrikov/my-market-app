@@ -23,25 +23,24 @@ import java.util.UUID;
 
 @Service
 public class CartService {
-    private final ItemRepository itemRepository;
     private final ItemMapper itemMapper;
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final ReactiveHashOperations<String, String, String> hashOps;
     private final ReactiveStreamOperations<String, String, String> streamOps;
+    private final ItemService itemService;
 
     private static final String CART_PREFIX = "cart:";
     private static final String CART_STREAM = "cart-events";
 
-
     @Autowired
-    public CartService(ItemRepository itemRepository,
-                       ItemMapper itemMapper,
-                       ReactiveRedisTemplate<String, String> redisTemplate) {
-        this.itemRepository = itemRepository;
+    public CartService(ItemMapper itemMapper,
+                       ReactiveRedisTemplate<String, String> redisTemplate,
+                       ItemService itemService) {
         this.itemMapper = itemMapper;
         this.redisTemplate = redisTemplate;
         this.hashOps = redisTemplate.opsForHash();
         this.streamOps = redisTemplate.opsForStream();
+        this.itemService = itemService;
     }
 
     private static final String CART_ITEMS_SUFFIX = ":items";
@@ -123,12 +122,12 @@ public class CartService {
                         return Flux.empty();
                     }
 
-                    return itemRepository.findAllById(counts.keySet())
-                            .map(entity -> {
-                                Item item = itemMapper.toModel(entity);
-                                item.setCount(counts.getOrDefault(entity.getId(), 0));
-                                return item;
-                            });
+                    return Flux.fromIterable(counts.keySet())
+                            .flatMap(itemId -> itemService.findByItemId(itemId)
+                                    .map(item -> {
+                                        item.setCount(counts.getOrDefault(itemId, 0));
+                                        return item;
+                                    }));
                 });
     }
 

@@ -35,6 +35,17 @@ public class ItemService {
         this.itemRedisTemplate = itemRedisTemplate;
     }
 
+    public Mono<Item> findByItemId(Long id) {
+        String cacheKey = ITEM_CACHE_PREFIX + id;
+        return itemRedisTemplate.opsForValue().get(cacheKey)
+                .switchIfEmpty(
+                        itemRepository.findById(id)
+                                .map(itemMapper::toModel)
+                                .flatMap(item -> itemRedisTemplate.opsForValue().set(cacheKey, item, CACHE_TTL)
+                                        .thenReturn(item))
+                );
+    }
+
     public Flux<Item> getItems(String search, UUID sessionId, Pageable pageable) {
         String cacheKey = String.format("items:all:%s:%d:%d:%s",
                 search != null ? search : "",
@@ -68,20 +79,9 @@ public class ItemService {
     }
 
     public Mono<Item> findByItemIdAndSessionId(Long id, UUID sessionId) {
-        String cacheKey = ITEM_CACHE_PREFIX + id;
-
-        Mono<Item> itemMono = itemRedisTemplate.opsForValue().get(cacheKey)
-                .switchIfEmpty(
-                        itemRepository.findById(id)
-                                .map(itemMapper::toModel)
-                                .flatMap(item -> itemRedisTemplate.opsForValue().set(cacheKey, item, CACHE_TTL)
-                                        .thenReturn(item))
-                );
-
-        Mono<Integer> countMono = cartService.getCartCounts(sessionId)
-                .map(counts -> counts.getOrDefault(id, 0));
-
-        return itemMono.zipWith(countMono)
+        return findByItemId(id)
+                .zipWith(cartService.getCartCounts(sessionId)
+                        .map(counts -> counts.getOrDefault(id, 0)))
                 .map(tuple -> {
                     Item item = tuple.getT1();
                     item.setCount(tuple.getT2());

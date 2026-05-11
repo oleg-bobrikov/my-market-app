@@ -33,9 +33,6 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class CartServiceTest {
     @Mock
-    private ItemRepository itemRepository;
-
-    @Mock
     private ItemMapper itemMapper;
 
     @Mock
@@ -46,6 +43,9 @@ class CartServiceTest {
 
     @Mock
     private ReactiveStreamOperations<String, String, String> streamOperations;
+
+    @Mock
+    private ru.yandex.practicum.shop.service.ItemService itemService;
 
     private CartService cartService;
 
@@ -64,7 +64,7 @@ class CartServiceTest {
         lenient().when(redisTemplate.delete(anyString())).thenReturn(Mono.just(1L));
         lenient().when(redisTemplate.delete(any(String[].class))).thenReturn(Mono.just(1L));
         lenient().when(hashOperations.putAll(anyString(), anyMap())).thenReturn(Mono.empty());
-        cartService = new CartService(itemRepository, itemMapper, redisTemplate);
+        cartService = new CartService(itemMapper, redisTemplate, itemService);
     }
 
     @Test
@@ -132,19 +132,17 @@ class CartServiceTest {
     void getCartItems_WhenItemsInRedis_ReturnsCartItems() {
         UUID sessionId = UUID.randomUUID();
         Long itemId = 1L;
-        ItemEntity itemEntity = ItemEntity.builder().id(itemId).title("Test Item").build();
         Item itemModel = Item.builder().id(itemId).title("Test Item").build();
 
         lenient().when(hashOperations.entries(anyString())).thenReturn(Flux.just(new java.util.AbstractMap.SimpleEntry<>(itemId.toString(), "1")));
-        when(itemRepository.findAllById(anyCollection())).thenReturn(Flux.just(itemEntity));
-        when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
+        when(itemService.findByItemId(itemId)).thenReturn(Mono.just(itemModel));
 
         cartService.getCartItems(sessionId)
                 .as(StepVerifier::create)
                 .expectNextMatches(item -> item.getId().equals(itemId) && item.getCount() == 1)
                 .verifyComplete();
 
-        verify(itemRepository).findAllById(anyCollection());
+        verify(itemService).findByItemId(itemId);
     }
 
     @Test
