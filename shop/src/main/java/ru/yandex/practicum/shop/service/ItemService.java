@@ -6,12 +6,10 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.model.Item;
-import ru.yandex.practicum.shop.entity.CartItemEntity;
 import ru.yandex.practicum.shop.entity.ItemEntity;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.repository.ItemRepository;
 
-import java.util.Map;
 import java.util.UUID;
 
 @Service
