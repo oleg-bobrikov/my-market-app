@@ -1,5 +1,6 @@
 plugins {
     java
+    idea
     id("org.springframework.boot")
     id("io.spring.dependency-management")
     id("org.openapi.generator") version "7.17.0"
@@ -24,6 +25,12 @@ sourceSets {
         java {
             srcDir("build/generated/src/main/java")
         }
+    }
+}
+
+configure<org.gradle.plugins.ide.idea.model.IdeaModel> {
+    module {
+        generatedSourceDirs.add(file("build/generated/src/main/java"))
     }
 }
 

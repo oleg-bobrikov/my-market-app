@@ -2,6 +2,7 @@ import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
 
 plugins {
     java
+    idea
     id("org.springframework.boot")
     id("io.spring.dependency-management")
     id("org.openapi.generator") version "7.17.0"
@@ -38,6 +39,12 @@ tasks.register<GenerateTask>("openApiGenerateClient") {
 
 openApiValidate {
     inputSpec.set("$rootDir/openapi.yaml")
+}
+
+configure<org.gradle.plugins.ide.idea.model.IdeaModel> {
+    module {
+        generatedSourceDirs.add(file("build/generated/src/main/java"))
+    }
 }
 
 description = "payment"
