@@ -41,7 +41,9 @@ class PaymentServiceTest {
     @Test
     void payOrder_WhenAccountDoesNotExist_CreatesAccountWithDefaultBalance() {
         BigDecimal amountToPay = new BigDecimal("1000");
-        PaymentRequest paymentRequest = new PaymentRequest("order-1", amountToPay);
+        PaymentRequest paymentRequest = new PaymentRequest();
+        paymentRequest.setOrderId("order-1");
+        paymentRequest.setAmount(amountToPay.toString());
         BigDecimal defaultBalance = new BigDecimal(30_000);
         BigDecimal remaining = defaultBalance.subtract(amountToPay);
 
@@ -60,8 +62,8 @@ class PaymentServiceTest {
 
         StepVerifier.create(result)
                 .expectNextMatches(response ->
-                        response.status() == PaymentStatus.SUCCESS &&
-                        response.remainingBalance().compareTo(remaining) == 0
+                        response.getStatus() == PaymentStatus.SUCCESS &&
+                        new BigDecimal(response.getRemainingBalance()).compareTo(remaining) == 0
                 )
                 .verifyComplete();
     }
@@ -75,14 +77,18 @@ class PaymentServiceTest {
         Mono<Balance> result = paymentService.getBalance(sessionId);
 
         StepVerifier.create(result)
-                .expectNext(new Balance(sessionId, amount))
+                .expectNextMatches(balance -> 
+                        balance.getClientId().equals(sessionId) &&
+                        new BigDecimal(balance.getBalance()).compareTo(amount) == 0)
                 .verifyComplete();
     }
 
     @Test
     void payOrder_WhenCalledConcurrently_CreatesAccountOnlyOnce() {
         BigDecimal amountToPay = new BigDecimal("1000");
-        PaymentRequest paymentRequest = new PaymentRequest("order-1", amountToPay);
+        PaymentRequest paymentRequest = new PaymentRequest();
+        paymentRequest.setOrderId("order-1");
+        paymentRequest.setAmount(amountToPay.toString());
         BigDecimal defaultBalance = new BigDecimal(30_000);
 
         // Имитируем задержку при первом сохранении
@@ -105,8 +111,8 @@ class PaymentServiceTest {
 
         StepVerifier.create(Mono.zip(call1, call2))
                 .expectNextMatches(tuple ->
-                        tuple.getT1().status() == PaymentStatus.SUCCESS &&
-                        tuple.getT2().status() == PaymentStatus.SUCCESS
+                        tuple.getT1().getStatus() == PaymentStatus.SUCCESS &&
+                        tuple.getT2().getStatus() == PaymentStatus.SUCCESS
                 )
                 .verifyComplete();
 
@@ -117,7 +123,9 @@ class PaymentServiceTest {
     @Test
     void payOrder_WhenInsufficientFunds_ThrowsExceptionAndLogs() {
         BigDecimal amountToPay = new BigDecimal("40000");
-        PaymentRequest paymentRequest = new PaymentRequest("order-fail", amountToPay);
+        PaymentRequest paymentRequest = new PaymentRequest();
+        paymentRequest.setOrderId("order-fail");
+        paymentRequest.setAmount(amountToPay.toString());
 
         when(accountRepository.findById(sessionId))
                 .thenReturn(Mono.empty()); // Аккаунт не найден, будет создан
@@ -159,19 +167,28 @@ class PaymentServiceTest {
         });
 
         // Первый платеж
-        paymentService.payOrder(sessionId, new PaymentRequest("order1", order1))
+        PaymentRequest req1 = new PaymentRequest();
+        req1.setOrderId("order1");
+        req1.setAmount(order1.toString());
+        paymentService.payOrder(sessionId, req1)
                 .as(StepVerifier::create)
-                .expectNextMatches(r -> r.status() == PaymentStatus.SUCCESS && r.remainingBalance().compareTo(new BigDecimal("27000")) == 0)
+                .expectNextMatches(r -> r.getStatus() == PaymentStatus.SUCCESS && new BigDecimal(r.getRemainingBalance()).compareTo(new BigDecimal("27000")) == 0)
                 .verifyComplete();
 
         // Второй платеж
-        paymentService.payOrder(sessionId, new PaymentRequest("order2", order2))
+        PaymentRequest req2 = new PaymentRequest();
+        req2.setOrderId("order2");
+        req2.setAmount(order2.toString());
+        paymentService.payOrder(sessionId, req2)
                 .as(StepVerifier::create)
-                .expectNextMatches(r -> r.status() == PaymentStatus.SUCCESS && r.remainingBalance().compareTo(new BigDecimal("11900")) == 0)
+                .expectNextMatches(r -> r.getStatus() == PaymentStatus.SUCCESS && new BigDecimal(r.getRemainingBalance()).compareTo(new BigDecimal("11900")) == 0)
                 .verifyComplete();
 
         // Третий платеж - должен зафейлиться
-        paymentService.payOrder(sessionId, new PaymentRequest("order3", order3))
+        PaymentRequest req3 = new PaymentRequest();
+        req3.setOrderId("order3");
+        req3.setAmount(order3.toString());
+        paymentService.payOrder(sessionId, req3)
                 .as(StepVerifier::create)
                 .expectError(InsufficientFundsException.class)
                 .verify();

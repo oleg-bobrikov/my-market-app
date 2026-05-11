@@ -31,7 +31,8 @@ tasks.register<GenerateTask>("openApiGenerateClient") {
     modelPackage.set("ru.yandex.practicum.payment.model")
     configOptions.set(mapOf(
         "useSpringBoot3" to "true",
-        "reactive" to "true"
+        "reactive" to "true",
+        "useJakartaEe" to "true"
     ))
 }
 
@@ -47,6 +48,14 @@ java {
     }
 }
 
+
+sourceSets {
+    main {
+        java {
+            srcDir("build/generated/src/main/java")
+        }
+    }
+}
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webflux")
@@ -67,4 +76,8 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+tasks.withType<JavaCompile> {
+    dependsOn("openApiGenerate", "openApiGenerateClient")
 }

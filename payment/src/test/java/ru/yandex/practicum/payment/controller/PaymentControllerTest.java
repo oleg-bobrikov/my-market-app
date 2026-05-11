@@ -31,8 +31,14 @@ class PaymentControllerTest {
     @Test
     void pay_WhenSuccessful_ReturnsOk() {
         UUID sessionId = UUID.randomUUID();
-        PaymentRequest request = new PaymentRequest("order-1", new BigDecimal("100.00"));
-        PaymentResponse response = new PaymentResponse(PaymentStatus.SUCCESS, "order-1", new BigDecimal("900.00"));
+        PaymentRequest request = new PaymentRequest();
+        request.setOrderId("order-1");
+        request.setAmount("100.00");
+        
+        PaymentResponse response = new PaymentResponse();
+        response.setStatus(PaymentStatus.SUCCESS);
+        response.setOrderId("order-1");
+        response.setRemainingBalance("900.00");
 
         when(paymentService.payOrder(eq(sessionId), any(PaymentRequest.class)))
                 .thenReturn(Mono.just(response));
@@ -47,13 +53,15 @@ class PaymentControllerTest {
                 .expectBody()
                 .jsonPath("$.status").isEqualTo("SUCCESS")
                 .jsonPath("$.orderId").isEqualTo("order-1")
-                .jsonPath("$.remainingBalance").isEqualTo("900.0");
+                .jsonPath("$.remainingBalance").isEqualTo("900.00");
     }
 
     @Test
     void pay_WhenInsufficientFunds_ReturnsBadRequest() {
         UUID sessionId = UUID.randomUUID();
-        PaymentRequest request = new PaymentRequest("order-1", new BigDecimal("1000.00"));
+        PaymentRequest request = new PaymentRequest();
+        request.setOrderId("order-1");
+        request.setAmount("1000.00");
 
         when(paymentService.payOrder(eq(sessionId), any(PaymentRequest.class)))
                 .thenReturn(Mono.error(new ru.yandex.practicum.payment.exception.InsufficientFundsException("Недостаточно средств на счете")));

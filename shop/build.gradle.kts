@@ -2,6 +2,29 @@ plugins {
     java
     id("org.springframework.boot")
     id("io.spring.dependency-management")
+    id("org.openapi.generator") version "7.17.0"
+}
+
+openApiGenerate {
+    generatorName.set("java")
+    library.set("webclient")
+    inputSpec.set("$rootDir/openapi.yaml")
+    outputDir.set("$projectDir/build/generated")
+    apiPackage.set("ru.yandex.practicum.payment.client.api")
+    modelPackage.set("ru.yandex.practicum.payment.client.model")
+    configOptions.set(mapOf(
+        "useSpringBoot3" to "true",
+        "reactive" to "true",
+        "useJakartaEe" to "true"
+    ))
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir("build/generated/src/main/java")
+        }
+    }
 }
 
 description = "shop"
@@ -32,6 +55,11 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("org.postgresql:r2dbc-postgresql")
 
+    implementation("org.openapitools:jackson-databind-nullable:0.2.6")
+    implementation("io.swagger.core.v3:swagger-annotations:2.2.22")
+    implementation("jakarta.validation:jakarta.validation-api:3.0.2")
+    implementation("jakarta.annotation:jakarta.annotation-api:2.1.1")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.mockito:mockito-core:5.11.0")
@@ -53,4 +81,8 @@ dependencies {
 tasks.withType<Test> {
     useJUnitPlatform()
     jvmArgs("-XX:+EnableDynamicAgentLoading", "-Xshare:off", "-javaagent:${mockitoAgent.asPath}")
+}
+
+tasks.withType<JavaCompile> {
+    dependsOn("openApiGenerate")
 }

@@ -14,15 +14,21 @@ public class PaymentExceptionHandler {
 
     @ExceptionHandler(InsufficientFundsException.class)
     public Mono<ResponseEntity<ErrorResponse>> handleInsufficientFundsException(InsufficientFundsException ex) {
+        ErrorResponse errorResponse = new ErrorResponse();
+        errorResponse.setStatus(PaymentStatus.ERROR);
+        errorResponse.setMessage(ex.getMessage());
         return Mono.just(ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(PaymentStatus.ERROR, ex.getMessage())));
+                .body(errorResponse));
     }
 
     @ExceptionHandler(Exception.class)
     public Mono<ResponseEntity<ErrorResponse>> handleGenericException(Exception ex) {
+        ErrorResponse errorResponse = new ErrorResponse();
+        errorResponse.setStatus(PaymentStatus.ERROR);
+        errorResponse.setMessage("Внутренняя ошибка сервера");
         return Mono.just(ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(PaymentStatus.ERROR, "Внутренняя ошибка сервера")));
+                .body(errorResponse));
     }
 }

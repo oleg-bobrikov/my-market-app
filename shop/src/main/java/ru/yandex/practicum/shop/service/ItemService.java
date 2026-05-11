@@ -22,7 +22,7 @@ public class ItemService {
     private final ReactiveRedisTemplate<String, Item> itemRedisTemplate;
 
     private static final String ITEM_CACHE_PREFIX = "item:";
-    private static final Duration CACHE_TTL = Duration.ofHours(1);
+    private static final Duration CACHE_TTL = Duration.ofMinutes(2);
 
     @Autowired
     public ItemService(ItemRepository itemRepository,

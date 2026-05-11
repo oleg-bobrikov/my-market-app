@@ -2,54 +2,56 @@ package ru.yandex.practicum.shop.client;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
-import ru.yandex.practicum.shop.client.model.PaymentRequest;
-import org.springframework.http.HttpStatusCode;
+import ru.yandex.practicum.payment.client.ApiClient;
+import ru.yandex.practicum.payment.client.api.DefaultApi;
+import ru.yandex.practicum.payment.client.model.PaymentRequest;
 import ru.yandex.practicum.shop.exception.InsufficientFundsException;
-import java.util.Map;
+import ru.yandex.practicum.shop.exception.PaymentServiceException;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
 @Component
 public class PaymentClient {
-    private final WebClient webClient;
+    private final DefaultApi paymentApi;
 
     public PaymentClient(@Value("${payment.service.url}") String baseUrl) {
-        this.webClient = WebClient.builder()
-                .baseUrl(baseUrl)
-                .build();
+        ApiClient apiClient = new ApiClient();
+        apiClient.setBasePath(baseUrl);
+        this.paymentApi = new DefaultApi(apiClient);
     }
 
     public Mono<BigDecimal> getBalance(UUID sessionId) {
-        return webClient.get()
-                .uri("/payments/api/balance")
-                .header("session_id", sessionId.toString())
-                .retrieve()
-                .bodyToMono(Map.class)
-                .map(map -> {
-                    Object balance = map.get("balance");
-                    if (balance == null) {
-                        return BigDecimal.ZERO;
+        paymentApi.getApiClient().addDefaultHeader("session_id", sessionId.toString());
+        return paymentApi.getBalance()
+                .map(balance -> new BigDecimal(balance.getBalance()))
+                .onErrorResume(e -> {
+                    if (e instanceof WebClientResponseException) {
+                        return Mono.error(new PaymentServiceException("Ошибка при получении баланса: " + e.getMessage()));
                     }
-                    return new BigDecimal(balance.toString());
+                    return Mono.error(e);
                 });
     }
 
-    public Mono<Void> pay(PaymentRequest paymentRequest, UUID sessionId) {
-        return webClient.post()
-                .uri("/payments/api")
-                .header("session_id", sessionId.toString())
-                .bodyValue(paymentRequest)
-                .retrieve()
-                .onStatus(HttpStatusCode::is4xxClientError, response ->
-                        response.bodyToMono(Map.class)
-                                .flatMap(body -> {
-                                    String message = body.get("message") != null ? body.get("message").toString() : "Ошибка платежа";
-                                    return Mono.error(new InsufficientFundsException(message));
-                                })
-                )
-                .bodyToMono(Void.class);
+    public Mono<Void> pay(ru.yandex.practicum.shop.client.model.PaymentRequest paymentRequest, UUID sessionId) {
+        paymentApi.getApiClient().addDefaultHeader("session_id", sessionId.toString());
+        
+        PaymentRequest apiRequest = new PaymentRequest();
+        apiRequest.setOrderId(paymentRequest.orderId());
+        apiRequest.setAmount(paymentRequest.amount().toString());
+
+        return paymentApi.payOrder(apiRequest)
+                .onErrorResume(e -> {
+                    if (e instanceof WebClientResponseException webEx) {
+                        if (webEx.getStatusCode().is4xxClientError()) {
+                            return Mono.error(new InsufficientFundsException("Недостаточно средств или ошибка клиента"));
+                        }
+                        return Mono.error(new PaymentServiceException("Ошибка сервиса платежей: " + webEx.getMessage()));
+                    }
+                    return Mono.error(e);
+                })
+                .then();
     }
 }
