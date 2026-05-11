@@ -12,14 +12,13 @@ import ru.yandex.practicum.payment.model.PaymentResponse;
 import ru.yandex.practicum.payment.model.PaymentStatus;
 import ru.yandex.practicum.payment.service.PaymentService;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-@WebFluxTest(PaymentController.class)
+@WebFluxTest({PaymentController.class, PaymentExceptionHandler.class})
 class PaymentControllerTest {
 
     @Autowired
