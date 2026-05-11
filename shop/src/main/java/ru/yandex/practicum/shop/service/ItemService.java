@@ -88,4 +88,20 @@ public class ItemService {
                     return item;
                 });
     }
+
+    public Flux<Item> getCartItems(UUID sessionId) {
+        return cartService.getCartCounts(sessionId)
+                .flatMapMany(counts -> {
+                    if (counts.isEmpty()) {
+                        return Flux.empty();
+                    }
+
+                    return Flux.fromIterable(counts.keySet())
+                            .flatMap(itemId -> findByItemId(itemId)
+                                    .map(item -> {
+                                        item.setCount(counts.getOrDefault(itemId, 0));
+                                        return item;
+                                    }));
+                });
+    }
 }

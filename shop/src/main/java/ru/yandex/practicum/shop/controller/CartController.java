@@ -11,6 +11,7 @@ import ru.yandex.practicum.shop.client.PaymentClient;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.model.CartAction;
 import ru.yandex.practicum.shop.service.CartService;
+import ru.yandex.practicum.shop.service.ItemService;
 
 import java.util.UUID;
 
@@ -21,12 +22,14 @@ import static ru.yandex.practicum.shop.filter.SessionWebFilter.SESSION_ATTRIBUTE
 @RequestMapping("/cart")
 public class CartController extends BaseController{
     private final CartService cartService;
+    private final ItemService itemService;
     private final ItemMapper itemMapper;
     private final PaymentClient paymentClient;
 
     @Autowired
-    public CartController(CartService cartService, ItemMapper itemMapper, PaymentClient paymentClient) {
+    public CartController(CartService cartService, ItemService itemService, ItemMapper itemMapper, PaymentClient paymentClient) {
         this.cartService = cartService;
+        this.itemService = itemService;
         this.itemMapper = itemMapper;
         this.paymentClient = paymentClient;
     }
@@ -37,7 +40,7 @@ public class CartController extends BaseController{
 
         UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
 
-        return cartService.getCartItems(sessionUuid)
+        return itemService.getCartItems(sessionUuid)
                 .collectList()
                 .flatMap(items -> {
                     if (items.isEmpty()) {
@@ -89,7 +92,7 @@ public class CartController extends BaseController{
             UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
 
             return cartService.updateCartItem(sessionUuid, id, action)
-                    .then(cartService.getCartItems(sessionUuid).collectList())
+                    .then(itemService.getCartItems(sessionUuid).collectList())
                     .map(cartItems -> cartItems.isEmpty() ? "redirect:/items" : "redirect:/cart/items");
         });
     }

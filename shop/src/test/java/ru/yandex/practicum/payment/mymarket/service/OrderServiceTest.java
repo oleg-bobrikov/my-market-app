@@ -30,6 +30,7 @@ import ru.yandex.practicum.shop.repository.ItemRepository;
 import ru.yandex.practicum.shop.repository.OrderItemRepository;
 import ru.yandex.practicum.shop.repository.OrderRepository;
 import ru.yandex.practicum.shop.service.CartService;
+import ru.yandex.practicum.shop.service.ItemService;
 import ru.yandex.practicum.shop.service.OrderService;
 
 import java.math.BigDecimal;
@@ -66,6 +67,9 @@ class OrderServiceTest {
     private CartService cartService;
 
     @Mock
+    private ItemService itemService;
+
+    @Mock
     private TransactionalOperator transactionalOperator;
 
     @InjectMocks
@@ -89,7 +93,7 @@ class OrderServiceTest {
         Order savedModel = Order.builder().id(10L).sessionId(sessionId).total(new BigDecimal("200.00")).build();
         OrderEntity savedEntity = OrderEntity.builder().id(10L).sessionId(sessionId).total(new BigDecimal("200.00")).build();
 
-        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(item));
+        when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(item));
         when(cartService.getTotalPrice(anyList())).thenReturn(Mono.just(new BigDecimal("200.00")));
         when(orderMapper.toEntity(any(Order.class))).thenReturn(entity);
         when(orderRepository.save(any(OrderEntity.class))).thenReturn(Mono.just(savedEntity));
@@ -113,7 +117,7 @@ class OrderServiceTest {
     @Test
     void createOrder_WhenCartIsEmpty_ThrowsException() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        when(cartService.getCartItems(sessionId)).thenReturn(Flux.empty());
+        when(itemService.getCartItems(sessionId)).thenReturn(Flux.empty());
 
         orderService.createOrder(sessionId)
                 .as(StepVerifier::create)
@@ -163,7 +167,7 @@ class OrderServiceTest {
         Order savedModel = Order.builder().id(10L).sessionId(sessionId).total(total).build();
         OrderEntity savedEntity = OrderEntity.builder().id(10L).sessionId(sessionId).total(total).build();
 
-        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(new Item()));
+        when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(new Item()));
         when(cartService.getTotalPrice(anyList())).thenReturn(Mono.just(total));
         when(paymentClient.getBalance(sessionId)).thenReturn(Mono.just(balance));
         when(paymentClient.pay(any(PaymentRequest.class), eq(sessionId))).thenReturn(Mono.empty());
@@ -188,7 +192,7 @@ class OrderServiceTest {
         BigDecimal total = new BigDecimal("200.00");
         BigDecimal balance = new BigDecimal("150.00");
 
-        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(new Item()));
+        when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(new Item()));
         when(cartService.getTotalPrice(anyList())).thenReturn(Mono.just(total));
         when(paymentClient.getBalance(sessionId)).thenReturn(Mono.just(balance));
 
@@ -204,7 +208,7 @@ class OrderServiceTest {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         BigDecimal total = new BigDecimal("200.00");
 
-        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(new Item()));
+        when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(new Item()));
         when(cartService.getTotalPrice(anyList())).thenReturn(Mono.just(total));
         when(paymentClient.getBalance(sessionId)).thenReturn(Mono.error(new RuntimeException("Conn error")));
 

@@ -21,6 +21,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentController {
     private final PaymentService paymentService;
+
     @PostMapping
     @Operation(
             summary = "Выполнить оплату заказа",
@@ -39,14 +40,12 @@ public class PaymentController {
                     )
             }
     )
-    public Mono<ResponseEntity<?>> payOrder(
+    public Mono<ResponseEntity<PaymentResponse>> payOrder(
             @RequestBody PaymentRequest paymentRequest,
             @RequestHeader("session_id") String sessionId
     ) {
         return paymentService.payOrder(UUID.fromString(sessionId), paymentRequest)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
-                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
-                        .body(new ErrorResponse(PaymentStatus.ERROR, e.getMessage()))));
+                .map(ResponseEntity::ok);
     }
 
     @GetMapping("/balance")

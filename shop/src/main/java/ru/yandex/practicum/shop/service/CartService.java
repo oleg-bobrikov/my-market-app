@@ -27,20 +27,17 @@ public class CartService {
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final ReactiveHashOperations<String, String, String> hashOps;
     private final ReactiveStreamOperations<String, String, String> streamOps;
-    private final ItemService itemService;
 
     private static final String CART_PREFIX = "cart:";
     private static final String CART_STREAM = "cart-events";
 
     @Autowired
     public CartService(ItemMapper itemMapper,
-                       ReactiveRedisTemplate<String, String> redisTemplate,
-                       ItemService itemService) {
+                       ReactiveRedisTemplate<String, String> redisTemplate) {
         this.itemMapper = itemMapper;
         this.redisTemplate = redisTemplate;
         this.hashOps = redisTemplate.opsForHash();
         this.streamOps = redisTemplate.opsForStream();
-        this.itemService = itemService;
     }
 
     private static final String CART_ITEMS_SUFFIX = ":items";
@@ -115,21 +112,6 @@ public class CartService {
                 .then();
     }
 
-    public Flux<Item> getCartItems(UUID sessionId) {
-        return getCartCounts(sessionId)
-                .flatMapMany(counts -> {
-                    if (counts.isEmpty()) {
-                        return Flux.empty();
-                    }
-
-                    return Flux.fromIterable(counts.keySet())
-                            .flatMap(itemId -> itemService.findByItemId(itemId)
-                                    .map(item -> {
-                                        item.setCount(counts.getOrDefault(itemId, 0));
-                                        return item;
-                                    }));
-                });
-    }
 
     public Mono<java.util.Map<Long, Integer>> getCartCounts(UUID sessionId) {
         if (sessionId == null) {

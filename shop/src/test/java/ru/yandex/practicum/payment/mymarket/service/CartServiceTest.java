@@ -64,7 +64,7 @@ class CartServiceTest {
         lenient().when(redisTemplate.delete(anyString())).thenReturn(Mono.just(1L));
         lenient().when(redisTemplate.delete(any(String[].class))).thenReturn(Mono.just(1L));
         lenient().when(hashOperations.putAll(anyString(), anyMap())).thenReturn(Mono.empty());
-        cartService = new CartService(itemMapper, redisTemplate, itemService);
+        cartService = new CartService(itemMapper, redisTemplate);
     }
 
     @Test
@@ -125,35 +125,6 @@ class CartServiceTest {
         cartService.getTotalPrice(List.of(item1, item2))
                 .as(StepVerifier::create)
                 .expectNext(new BigDecimal("250.00"))
-                .verifyComplete();
-    }
-
-    @Test
-    void getCartItems_WhenItemsInRedis_ReturnsCartItems() {
-        UUID sessionId = UUID.randomUUID();
-        Long itemId = 1L;
-        Item itemModel = Item.builder().id(itemId).title("Test Item").build();
-
-        lenient().when(hashOperations.entries(anyString())).thenReturn(Flux.just(new java.util.AbstractMap.SimpleEntry<>(itemId.toString(), "1")));
-        when(itemService.findByItemId(itemId)).thenReturn(Mono.just(itemModel));
-
-        cartService.getCartItems(sessionId)
-                .as(StepVerifier::create)
-                .expectNextMatches(item -> item.getId().equals(itemId) && item.getCount() == 1)
-                .verifyComplete();
-
-        verify(itemService).findByItemId(itemId);
-    }
-
-    @Test
-    void getCartItems_WhenRedisEmpty_LoadsItemsFromDatabase() {
-        UUID sessionId = UUID.randomUUID();
-
-        lenient().when(hashOperations.entries(anyString())).thenReturn(Flux.empty());
-
-        cartService.getCartItems(sessionId)
-                .as(StepVerifier::create)
-                .expectNextCount(0)
                 .verifyComplete();
     }
 }

@@ -10,7 +10,8 @@ CREATE TABLE
     title       VARCHAR(255)   NOT NULL,
     description VARCHAR(1000)  NOT NULL,
     img_path    VARCHAR(255)   NOT NULL,
-    price       NUMERIC(15, 2) NOT NULL
+    price       NUMERIC(15, 2) NOT NULL,
+    count       INTEGER        NOT NULL DEFAULT 0
 );
 
 

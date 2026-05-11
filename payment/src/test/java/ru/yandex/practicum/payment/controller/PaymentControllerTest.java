@@ -56,7 +56,7 @@ class PaymentControllerTest {
         PaymentRequest request = new PaymentRequest("order-1", new BigDecimal("1000.00"));
 
         when(paymentService.payOrder(eq(sessionId), any(PaymentRequest.class)))
-                .thenReturn(Mono.error(new RuntimeException("Недостаточно средств на счете")));
+                .thenReturn(Mono.error(new ru.yandex.practicum.payment.exception.InsufficientFundsException("Недостаточно средств на счете")));
 
         webTestClient.post()
                 .uri("/payments/api")

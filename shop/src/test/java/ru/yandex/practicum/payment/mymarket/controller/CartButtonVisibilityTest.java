@@ -23,7 +23,7 @@ public class CartButtonVisibilityTest extends BaseWebFluxTest {
         List<Item> items = List.of(item);
         ItemDto itemDto = ItemDto.builder().id(1L).title("Item 1").price(BigDecimal.valueOf(100)).count(1).build();
 
-        when(cartService.getCartItems(sessionId)).thenReturn(Flux.fromIterable(items));
+        when(itemService.getCartItems(sessionId)).thenReturn(Flux.fromIterable(items));
         when(cartService.getTotalPrice(items)).thenReturn(Mono.just(BigDecimal.valueOf(100)));
         when(itemMapper.toDto(item)).thenReturn(itemDto);
         // Баланс 50, нужно 100
@@ -47,7 +47,7 @@ public class CartButtonVisibilityTest extends BaseWebFluxTest {
         List<Item> items = List.of(item);
         ItemDto itemDto = ItemDto.builder().id(1L).title("Item 1").price(BigDecimal.valueOf(100)).count(1).build();
 
-        when(cartService.getCartItems(sessionId)).thenReturn(Flux.fromIterable(items));
+        when(itemService.getCartItems(sessionId)).thenReturn(Flux.fromIterable(items));
         when(cartService.getTotalPrice(items)).thenReturn(Mono.just(BigDecimal.valueOf(100)));
         when(itemMapper.toDto(item)).thenReturn(itemDto);
         // Сервис платежей возвращает ошибку
@@ -70,7 +70,7 @@ public class CartButtonVisibilityTest extends BaseWebFluxTest {
         BigDecimal total = BigDecimal.valueOf(200);
 
         when(orderService.buy(sessionId)).thenReturn(Mono.error(new ru.yandex.practicum.shop.exception.InsufficientFundsException("на балансе недостаточно средств")));
-        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(new ru.yandex.practicum.shop.model.Item()));
+        when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(new ru.yandex.practicum.shop.model.Item()));
         when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
 
@@ -91,7 +91,7 @@ public class CartButtonVisibilityTest extends BaseWebFluxTest {
         BigDecimal total = BigDecimal.valueOf(100);
 
         when(orderService.buy(sessionId)).thenReturn(Mono.error(new ru.yandex.practicum.shop.exception.PaymentServiceException("Service down")));
-        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(new ru.yandex.practicum.shop.model.Item()));
+        when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(new ru.yandex.practicum.shop.model.Item()));
         when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
 

@@ -31,6 +31,7 @@ public class OrderService {
     private final CartRepository cartRepository;
     private final ItemRepository itemRepository;
     private final CartService cartService;
+    private final ItemService itemService;
     private final ItemMapper itemMapper;
     private final OrderMapper orderMapper;
     private final PaymentClient paymentClient;
@@ -41,7 +42,7 @@ public class OrderService {
     }
 
     public Mono<BigDecimal> calculateTotal(UUID sessionId) {
-        return cartService.getCartItems(sessionId)
+        return itemService.getCartItems(sessionId)
                 .collectList()
                 .flatMap(cartService::getTotalPrice);
     }
@@ -72,7 +73,7 @@ public class OrderService {
     }
 
     public Mono<Order> createOrder(UUID sessionId) {
-        return cartService.getCartItems(sessionId)
+        return itemService.getCartItems(sessionId)
                 .collectList()
                 .flatMap(items -> {
                     if (items.isEmpty()) {

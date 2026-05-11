@@ -25,7 +25,7 @@ public class CartControllerTest extends BaseWebFluxTest {
         List<Item> items = List.of(item);
         ItemDto itemDto = ItemDto.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
 
-        when(cartService.getCartItems(sessionId)).thenReturn(Flux.fromIterable(items));
+        when(itemService.getCartItems(sessionId)).thenReturn(Flux.fromIterable(items));
         when(cartService.getTotalPrice(items)).thenReturn(Mono.just(BigDecimal.TEN));
         when(itemMapper.toDto(item)).thenReturn(itemDto);
         when(paymentClient.getBalance(sessionId)).thenReturn(Mono.just(BigDecimal.valueOf(100)));
@@ -38,7 +38,7 @@ public class CartControllerTest extends BaseWebFluxTest {
 
     @Test
     public void getCartItems_WhenNoSession_RedirectsToItemsAndCreatesSession() {
-        when(cartService.getCartItems(any())).thenReturn(Flux.empty());
+        when(itemService.getCartItems(any())).thenReturn(Flux.empty());
 
         webTestClient.get().uri("/cart/items")
                 .exchange()
@@ -53,7 +53,7 @@ public class CartControllerTest extends BaseWebFluxTest {
         Item item = Item.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
 
         when(cartService.updateCartItem(eq(sessionId), eq(1L), eq(CartAction.PLUS))).thenReturn(Mono.empty());
-        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(item));
+        when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(item));
 
         webTestClient.post().uri(uriBuilder -> uriBuilder.path("/cart/items")
                         .queryParam("id", "1")
@@ -70,7 +70,7 @@ public class CartControllerTest extends BaseWebFluxTest {
     @Test
     void getCartItems_WhenCartIsEmpty_RedirectsToItems() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        when(cartService.getCartItems(sessionId)).thenReturn(Flux.empty());
+        when(itemService.getCartItems(sessionId)).thenReturn(Flux.empty());
 
         webTestClient.get().uri("/cart/items")
                 .cookie("SESSION_ID", sessionId.toString())
@@ -85,7 +85,7 @@ public class CartControllerTest extends BaseWebFluxTest {
         Item item = Item.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
 
         when(cartService.updateCartItem(eq(sessionId), eq(1L), eq(CartAction.PLUS))).thenReturn(Mono.empty());
-        when(cartService.getCartItems(sessionId)).thenReturn(Flux.just(item));
+        when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(item));
 
         webTestClient.post().uri("/cart/items")
                 .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)

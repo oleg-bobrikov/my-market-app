@@ -11,6 +11,7 @@ import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.exception.InsufficientFundsException;
 import ru.yandex.practicum.shop.exception.PaymentServiceException;
 import ru.yandex.practicum.shop.service.CartService;
+import ru.yandex.practicum.shop.service.ItemService;
 import ru.yandex.practicum.shop.service.OrderService;
 
 import java.util.Map;
@@ -25,6 +26,7 @@ public class OrderController {
     private final OrderService orderService;
     private final ItemMapper itemMapper;
     private final CartService cartService;
+    private final ItemService itemService;
 
     @PostMapping("/buy")
     public Mono<Rendering> buy(ServerWebExchange exchange) {
@@ -44,7 +46,7 @@ public class OrderController {
     }
 
     private Mono<Rendering> renderCartWithError(UUID sessionUuid, String error) {
-        return cartService.getCartItems(sessionUuid)
+        return itemService.getCartItems(sessionUuid)
                 .collectList()
                 .flatMap(items -> cartService.getTotalPrice(items)
                         .map(total -> {
