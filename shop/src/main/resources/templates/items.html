@@ -67,7 +67,7 @@
                 </div>
             </div>
         </div>
-        <div class="row p-2" th:each="itemsRow : ${items}">
+        <div class="row row-cols-5 p-2" th:each="itemsRow : ${items}">
             <div class="col mb-4" th:each="item : ${itemsRow}" th:id="${'item-' + item.id}">
                 <div class="card h-100" th:if="${item.id != -1}">
                     <a th:href="${'/items/'+item.id}">

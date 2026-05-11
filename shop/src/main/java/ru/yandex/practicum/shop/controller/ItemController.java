@@ -65,8 +65,8 @@ public class ItemController extends BaseController {
         return itemService.getItems(search, sessionUuid, pageable)
                 .map(itemMapper::toDto)
                 .collectList()
-                .map(content -> {
-                    int chunkSize = pageSize;
+                .flatMap(content -> {
+                    int chunkSize = 5;
                     List<List<ItemDto>> items = IntStream
                             .range(0, (content.size() + chunkSize - 1) / chunkSize)
                             .mapToObj(i -> {
@@ -82,19 +82,21 @@ public class ItemController extends BaseController {
                             })
                             .toList();
 
-                    return Rendering.view("items")
-                            .modelAttribute("items", items)
-                            .modelAttribute("search", search)
-                            .modelAttribute("sort", sort)
-                            .modelAttribute("paging",
-                                    new PagingInfo(
-                                            pageSize,
-                                            pageNumber,
-                                            pageNumber > 1,
-                                            content.size() == pageSize // примитивная hasNext
+                    return itemService.getItems(search, sessionUuid, PageRequest.of(pageNumber, pageSize, sortOrder))
+                            .hasElements()
+                            .map(hasNext -> Rendering.view("items")
+                                    .modelAttribute("items", items)
+                                    .modelAttribute("search", search)
+                                    .modelAttribute("sort", sort)
+                                    .modelAttribute("paging",
+                                            new PagingInfo(
+                                                    pageSize,
+                                                    pageNumber,
+                                                    pageNumber > 1,
+                                                    hasNext
+                                            )
                                     )
-                            )
-                            .build();
+                                    .build());
                 });
     }
 

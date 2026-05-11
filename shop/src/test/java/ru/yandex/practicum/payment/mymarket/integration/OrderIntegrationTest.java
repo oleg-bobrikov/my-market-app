@@ -80,6 +80,10 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
                 .as(StepVerifier::create)
                 .expectNextMatches(order -> order.getSessionId().equals(sessionId))
                 .verifyComplete();
+
+        // 4. Проверяем, что корзина очистилась
+        var finalCounts = cartService.getCartCounts(sessionId).block();
+        assert finalCounts == null || finalCounts.isEmpty();
     }
 
     @Test

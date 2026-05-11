@@ -97,6 +97,7 @@ class OrderServiceTest {
         when(orderMapper.toEntity(any(OrderItem.class))).thenReturn(new OrderItemEntity());
         when(orderItemRepository.saveAll(ArgumentMatchers.<Publisher<OrderItemEntity>>any())).thenReturn(Flux.empty());
         when(cartRepository.deleteBySessionId(sessionId)).thenReturn(Mono.empty());
+        when(cartService.clearCart(sessionId)).thenReturn(Mono.empty());
 
         orderService.createOrder(sessionId)
                 .as(StepVerifier::create)
@@ -106,6 +107,7 @@ class OrderServiceTest {
         verify(orderRepository).save(any(OrderEntity.class));
         verify(orderItemRepository).saveAll(ArgumentMatchers.<Publisher<OrderItemEntity>>any());
         verify(cartRepository).deleteBySessionId(sessionId);
+        verify(cartService).clearCart(sessionId);
     }
 
     @Test
@@ -171,6 +173,7 @@ class OrderServiceTest {
         when(orderMapper.toEntity(any(OrderItem.class))).thenReturn(new OrderItemEntity());
         when(orderItemRepository.saveAll(ArgumentMatchers.<Publisher<OrderItemEntity>>any())).thenReturn(Flux.empty());
         when(cartRepository.deleteBySessionId(sessionId)).thenReturn(Mono.empty());
+        when(cartService.clearCart(sessionId)).thenReturn(Mono.empty());
 
         orderService.buy(sessionId)
                 .as(StepVerifier::create)

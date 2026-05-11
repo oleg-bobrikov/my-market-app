@@ -96,6 +96,7 @@ public class OrderService {
 
                                             return orderItemRepository.saveAll(Flux.fromIterable(orderItems))
                                                     .then(cartRepository.deleteBySessionId(sessionId))
+                                                    .then(cartService.clearCart(sessionId))
                                                     .thenReturn(savedOrder);
                                         });
                             });

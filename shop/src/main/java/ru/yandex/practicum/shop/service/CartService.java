@@ -156,4 +156,12 @@ public class CartService {
                         .reduce(BigDecimal.ZERO, BigDecimal::add)
         );
     }
+
+    public Mono<Void> clearCart(UUID sessionId) {
+        String itemsKey = itemsKey(sessionId);
+        String vKey = versionKey(sessionId);
+        return redisTemplate.delete(itemsKey, vKey)
+                .then(redisTemplate.keys("items:all:*").flatMap(redisTemplate::delete).collectList())
+                .then();
+    }
 }
