@@ -28,8 +28,8 @@ public class PaymentClient {
         return paymentApi.getBalance()
                 .map(balance -> new BigDecimal(balance.getBalance()))
                 .onErrorResume(e -> {
-                    if (e instanceof WebClientResponseException) {
-                        return Mono.error(new PaymentServiceException("Ошибка при получении баланса: " + e.getMessage()));
+                    if (e instanceof WebClientResponseException webEx) {
+                        return Mono.error(new PaymentServiceException("Ошибка при получении баланса: " + webEx.getMessage()));
                     }
                     return Mono.error(e);
                 });

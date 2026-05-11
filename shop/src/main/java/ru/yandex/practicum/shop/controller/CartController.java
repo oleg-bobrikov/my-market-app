@@ -39,6 +39,10 @@ public class CartController extends BaseController{
             ServerWebExchange exchange) {
 
         UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
+        if (sessionUuid == null) {
+            log.error("Session ID is missing from exchange attributes");
+            return Mono.just(Rendering.redirectTo("/items").build());
+        }
 
         return itemService.getCartItems(sessionUuid)
                 .collectList()
@@ -90,6 +94,10 @@ public class CartController extends BaseController{
             Long id = Long.valueOf(idStr);
             CartAction action = CartAction.valueOf(actionStr);
             UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
+            if (sessionUuid == null) {
+                log.warn("Session ID is missing in updateCartItem");
+                return Mono.just("redirect:/items");
+            }
 
             return cartService.updateCartItem(sessionUuid, id, action)
                     .then(itemService.getCartItems(sessionUuid).collectList())
