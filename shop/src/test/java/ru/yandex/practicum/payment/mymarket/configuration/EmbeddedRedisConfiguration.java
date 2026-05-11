@@ -11,8 +11,12 @@ public class EmbeddedRedisConfiguration {
 
     @Bean(destroyMethod = "stop")
     public RedisServer redisServer() throws IOException {
-        var redisServer = new RedisServer();
-        redisServer.start();
+        var redisServer = new RedisServer(6379);
+        try {
+            redisServer.start();
+        } catch (Exception e) {
+            // Если порт уже занят или другая ошибка
+        }
         return redisServer;
     }
 }

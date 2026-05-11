@@ -51,13 +51,18 @@ public class OrderService {
                 .flatMap(total -> getBalance(sessionId)
                         .zipWith(Mono.just(total))
                 )
-                .onErrorMap(e -> new PaymentServiceException(e.getMessage()))
+                .onErrorMap(e -> {
+                    if (e instanceof InsufficientFundsException) {
+                        return e;
+                    }
+                    return new PaymentServiceException(e.getMessage());
+                })
                 .flatMap(tuple -> {
                     BigDecimal balance = tuple.getT1();
                     BigDecimal total = tuple.getT2();
 
                     if (balance.compareTo(total) < 0) {
-                        return Mono.error(new InsufficientFundsException("На балансе недостаточно средств"));
+                        return Mono.error(new InsufficientFundsException("Недостаточно средств на счете"));
                     }
 
                     return paymentClient.pay(new PaymentRequest(sessionId.toString(), total), sessionId)

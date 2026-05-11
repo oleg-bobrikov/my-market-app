@@ -107,4 +107,4 @@ components:
           $ref: '#/components/schemas/PaymentStatus'
         message:
           type: string
-          example: Недостаточно средств на счете
+          example: "Недостаточно средств на счете"
