@@ -15,11 +15,14 @@ jobs:
       contents: read
 
     steps:
+      - name: Force Node.js 24
+        run: echo "FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true" >> $GITHUB_ENV
+
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
@@ -32,9 +35,9 @@ jobs:
         run: ./gradlew check
 
       - name: Publish Test Results
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         if: always()
         with:
           name: Gradle Tests
-          path: build/test-results/**/*.xml
+          path: "**/build/test-results/**/*.xml"
           reporter: java-junit

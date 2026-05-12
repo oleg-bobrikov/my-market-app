@@ -1,16 +1,21 @@
 # 🛒 My Market App
 
-Веб-приложение «Витрина интернет-магазина», разработанное на **Spring Boot 3.5.14** с использованием реактивного стека технологий и принципов **Clean Architecture**.
+Веб-приложение «Витрина интернет-магазина», разработанное на **Spring Boot 3.5.14** с использованием реактивного стека технологий и микросервисного подхода.
 
 ## 📌 Описание проекта
 
-Приложение представляет собой интернет-магазин с базовым функционалом:
-* Просмотр товаров с пагинацией и поиском.
+Приложение представляет собой интернет-магазин, состоящий из двух сервисов:
+*   **Shop Service:** Основной сервис магазина (витрина, корзина, заказы).
+*   **Payment Service:** RESTful-сервис платежей и управления балансом на базе Spring WebFlux.
+
+Функционал:
+* Просмотр товаров с пагинацией и поиском. Данные о товарах кэшируются в **Redis** (TTL 2 мин).
 * Сортировка товаров по алфавиту и цене.
 * Добавление товаров в корзину (с использованием `SESSION_ID` в куках).
-* Оформление заказов и просмотр истории заказов.
+* Оформление заказов с проверкой баланса и оплатой через Payment Service.
+* Просмотр истории заказов.
 
-Проект реализован на **Spring WebFlux**, **Spring Data R2DBC** и **Thymeleaf**.
+Интеграция между сервисами реализована на основе **OpenAPI спецификации** с генерацией реактивного клиента и серверного кода.
 
 ---
 
@@ -19,160 +24,83 @@
 * Java 21
 * Spring Boot 3.5.14
 * Spring WebFlux (реактивный стек)
-* Spring Data R2DBC
+* Spring Data R2DBC (PostgreSQL / H2)
+* Spring Data Redis (Reactive)
+* OpenAPI / Swagger (генерация кода)
 * Thymeleaf
 * Gradle (Kotlin DSL)
-* H2 / PostgreSQL (R2DBC драйверы)
-* JUnit 5 / AssertJ / Reactor Test
-* MapStruct
-* Lombok
+* JUnit 5 / StepVerifier (Spring Boot Test)
+* Docker / Docker Compose
 
 ---
 
-## 📂 Структура проекта (Clean Architecture)
+## 📂 Структура проекта
 
-Проект организован в соответствии с принципами чистой архитектуры:
-
-* **`ru.yandex.practicum.mymarket.model` (Domain/Entities):** Чистые бизнес-объекты (POJO), не зависящие от фреймворков.
-* **`ru.yandex.practicum.mymarket.service` (Use Cases):** Бизнес-логика приложения.
-* **`ru.yandex.practicum.mymarket.entity` (Infrastructure):** Сущности базы данных с аннотациями Spring Data R2DBC.
-* **`ru.yandex.practicum.mymarket.repository` (Infrastructure):** Реактивные репозитории для доступа к БД.
-* **`ru.yandex.practicum.mymarket.controller` (Interface Adapters):** REST-контроллеры, обрабатывающие HTTP-запросы.
-* **`ru.yandex.practicum.mymarket.mapper` (Interface Adapters):** Мапперы для преобразования между Entity, Model и DTO.
+Проект организован в виде мультимодульной системы Gradle:
 
 ```text
 my-market-app/
-├── build.gradle.kts        # Конфигурация Gradle
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── ru.yandex.practicum.mymarket/
-│   │   │       ├── controller/  # Веб-слой
-│   │   │       ├── entity/      # Слой БД (Infrastructure)
-│   │   │       ├── model/       # Доменный слой (Domain)
-│   │   │       ├── service/     # Слой логики (Use Cases)
-│   │   │       ├── mapper/      # Преобразование данных
-│   │   │       └── repository/  # Доступ к данным
-│   │   └── resources/
-│   │       ├── static/          # Изображения товаров
-│   │       ├── templates/       # Шаблоны Thymeleaf (реактивные)
-│   │       ├── schema.sql       # Определение таблиц БД
-│   │       └── data.sql         # Начальные данные
-│   └── test/                    # Тесты (Unit, Integration, R2DBC)
+├── shop/                  # Модуль магазина (основное приложение)
+│   ├── src/main/java/     # Исходный код
+│   ├── build/generated/   # Сгенерированный OpenAPI клиент
+│   └── build.gradle.kts   # Конфигурация модуля shop
+├── payment/               # Модуль платежей
+│   ├── src/main/java/     # Исходный код (включая реализацию сгенерированных контроллеров)
+│   ├── build/generated/   # Сгенерированные OpenAPI интерфейсы и модели
+│   └── build.gradle.kts   # Конфигурация модуля payment
+├── openapi.yaml           # Спецификация API интеграции
+├── docker-compose.yml     # Окружение (PostgreSQL, Redis, Services)
+└── build.gradle.kts       # Корневой скрипт сборки
 ```
-
----
-
-## 🖥️ Функциональность
-
-### 🏪 Витрина товаров
-* Отображение списка товаров (плиткой).
-* Поиск по названию (регистронезависимый).
-* Сортировка (`ALPHA`, `PRICE`).
-* Пагинация (настраиваемый размер страницы).
-
-**URL:** `GET /items` (или `/`)
-
-### 📦 Страница товара
-* Детальная информация о товаре.
-* Управление количеством товара в корзине прямо со страницы.
-
-**URL:** `GET /items/{id}`
-
-### 🛒 Корзина
-* Просмотр списка выбранных товаров.
-* Изменение количества (`ADD`, `REMOVE`, `DELETE`) через POST-запрос.
-* Автоматический расчёт итоговой суммы.
-
-**URL:** `GET /cart/items`
-
-### 📑 Заказы
-* История всех оформленных заказов.
-* Детальный просмотр состава заказа.
-
-**URL:**
-* `GET /orders` — список всех заказов.
-* `GET /orders/{id}` — детали конкретного заказа.
-
-### 💳 Оформление заказа
-* Создание заказа на основе текущей корзины пользователя.
-* Очистка корзины после успешной покупки.
-
-**URL:** `POST /buy`
 
 ---
 
 ## ⚙️ Запуск проекта
 
-### 1. Локальный запуск (через Gradle Wrapper)
+### Сборка проекта
 ```bash
-./gradlew bootRun
-```
-Или сборка и запуск jar:
-```bash
-./gradlew build
-java -jar build/libs/my-market-app-0.0.1-SNAPSHOT.jar
+./gradlew clean build
 ```
 
-Приложение будет доступно по адресу: [http://localhost:8080](http://localhost:8080)
-
-### 2. Запуск через Docker
-Сборка образа:
-```bash
-docker build -t my-market-app .
-```
-Запуск контейнера:
-```bash
-docker run -p 8080:8080 my-market-app
-```
-
-## 🛠️ Настройка окружения
-
-Приложение поддерживает настройку через переменные окружения:
-
-| Переменная | Описание | Значение по умолчанию |
-|------------|----------|-----------------------|
-| `SERVER_PORT` | Порт приложения | `8080` |
-| `SPRING_R2DBC_URL` | URL подключения к БД (R2DBC) | `r2dbc:postgresql://localhost:5432/market` |
-| `SPRING_R2DBC_USERNAME` | Пользователь БД | `pgsql` |
-| `SPRING_R2DBC_PASSWORD` | Пароль БД | `pgsql` |
-
-### 🛠️ Обработка ошибок
-В приложении реализована централизованная обработка ошибок с помощью `GlobalErrorHandler`, которая корректно обрабатывает исключения валидации и некорректных запросов в реактивном стиле.
-
-## 🔍 Качество кода
-
-В проекте настроен **Qodana** для статического анализа кода. Конфигурация находится в файле `qodana.yaml`.
-
----
-
-## 🧪 Тестирование
-
-Проект содержит:
-* Интеграционные тесты (`BaseIntegrationTest`).
-* Тесты сервисов (`CartServiceTest`, `ItemServiceTest`, `OrderServiceTest`) с использованием моков.
-* Тесты репозиториев (`ItemRepositoryTest`, `CartRepositoryTest`, `OrderRepositoryTest`) на реальной БД (H2 R2DBC).
-* Реактивные тесты контроллеров (`BaseWebFluxTest`).
-
-Запуск всех тестов:
+### Запуск тестов
 ```bash
 ./gradlew test
 ```
 
+### Запуск через Docker Compose
+Запуск всей инфраструктуры и приложений:
+```bash
+docker-compose up --build
+```
+После запуска:
+- Витрина магазина: [http://localhost:8080](http://localhost:8080)
+- Сервис платежей: [http://localhost:8081](http://localhost:8081)
+- Redis: `localhost:6379`
+- PostgreSQL: `localhost:5432`
+
 ---
 
-## 🗄️ Модель данных
+## 🏗️ Особенности реализации
 
-### Доменные модели (Domain Layer):
-* **Item:** id, title, description, price, imgPath.
-* **CartItem:** id, sessionId, item, count.
-* **Order:** id, sessionId, items, total.
-* **OrderItem:** item, count.
+### ⚡ Кэширование (Redis)
+* Список товаров и карточки товаров кэшируются в Redis.
+* Если данных в кэше нет, они загружаются из БД и сохраняются в кэш.
+* Время жизни кэша (TTL) составляет 2 минуты.
 
-### Сущности БД (Infrastructure Layer):
-* **ItemEntity:** соответствует таблице `items`.
-* **CartItemEntity:** соответствует таблице `cart_items`.
-* **OrderEntity:** соответствует таблице `orders`.
-* **OrderItemEntity:** соответствует таблице `order_items`.
+### 💳 Интеграция платежей (OpenAPI)
+* Описана спецификация `openapi.yaml`.
+* В модуле `shop` генерируется WebClient для обращения к `payment`.
+* В модуле `payment` генерируются интерфейсы контроллеров и модели данных.
+* Передача данных осуществляется в формате JSON.
+
+---
+
+## 🧪 Тестирование
+Проект покрыт тестами с использованием:
+* **JUnit 5**
+* **Spring Boot Test** (интеграционные тесты)
+* **TestContext Framework** (кэширование контекстов)
+* **Embedded Redis** (для тестов кэширования)
+* **StepVerifier** (для проверки реактивных потоков)
 
 ---
