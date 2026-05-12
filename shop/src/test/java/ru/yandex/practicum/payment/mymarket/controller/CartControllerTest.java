@@ -17,6 +17,28 @@ import static org.mockito.Mockito.*;
 public class CartControllerTest extends BaseWebFluxTest {
 
     @Test
+    public void getCartItems_WhenPaymentServiceError_ReturnsCartViewWithErrorMessage() {
+        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        Item item = Item.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
+        List<Item> items = List.of(item);
+        ItemDto itemDto = ItemDto.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
+
+        when(itemService.getCartItems(sessionId)).thenReturn(Flux.fromIterable(items));
+        when(cartService.getTotalPrice(items)).thenReturn(Mono.just(BigDecimal.TEN));
+        when(itemMapper.toDto(item)).thenReturn(itemDto);
+        when(paymentClient.getBalance(sessionId)).thenReturn(Mono.error(new RuntimeException("Service Unavailable")));
+
+        webTestClient.get().uri("/cart/items")
+                .cookie("SESSION_ID", sessionId.toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(body -> {
+                    assert body.contains("сервис платежей недоступен");
+                });
+    }
+
+    @Test
     public void getCartItems_WhenItemsExist_ReturnsCartView() {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Item item = Item.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();

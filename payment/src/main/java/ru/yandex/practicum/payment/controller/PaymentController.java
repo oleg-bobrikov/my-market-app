@@ -26,7 +26,7 @@ public class PaymentController implements BalanceApi, DefaultApi {
     private final PaymentService paymentService;
 
     @Override
-    @PostMapping("")
+    @PostMapping({"", "/"})
     public Mono<ResponseEntity<PaymentResponse>> payOrder(
             @RequestBody Mono<PaymentRequest> paymentRequest,
             ServerWebExchange exchange

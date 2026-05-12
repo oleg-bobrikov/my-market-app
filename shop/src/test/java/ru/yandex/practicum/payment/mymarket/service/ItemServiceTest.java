@@ -9,11 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.redis.core.ReactiveListOperations;
-import org.springframework.data.redis.core.ReactiveRedisTemplate;
-import org.springframework.data.redis.core.ReactiveValueOperations;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import ru.yandex.practicum.shop.entity.ItemEntity;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
@@ -23,7 +19,6 @@ import ru.yandex.practicum.shop.service.CartService;
 import ru.yandex.practicum.shop.service.ItemService;
 
 import java.math.BigDecimal;
-import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 
@@ -43,34 +38,18 @@ class ItemServiceTest {
     @Mock
     private ItemMapper itemMapper;
 
-    @Mock
-    private ReactiveRedisTemplate<String, Item> itemRedisTemplate;
-
-    @Mock
-    private ReactiveListOperations<String, Item> reactiveListOperations;
-
-    @Mock
-    private ReactiveValueOperations<String, Item> reactiveValueOperations;
-
     private ItemService itemService;
 
     @BeforeEach
     void setUp() {
-        lenient().when(itemRedisTemplate.opsForList()).thenReturn(reactiveListOperations);
-        lenient().when(itemRedisTemplate.opsForValue()).thenReturn(reactiveValueOperations);
-        lenient().when(reactiveListOperations.range(anyString(), anyLong(), anyLong())).thenReturn(Flux.empty());
-        lenient().when(reactiveValueOperations.get(anyString())).thenReturn(Mono.empty());
-        lenient().when(reactiveListOperations.rightPushAll(anyString(), anyCollection())).thenAnswer(invocation -> {
-            Collection<?> collection = invocation.getArgument(1);
-            if (collection == null || collection.isEmpty()) {
-                throw new IllegalArgumentException("Values must not be null or empty");
-            }
-            return Mono.just(1L);
-        });
-        lenient().when(reactiveValueOperations.set(anyString(), any(Item.class), any())).thenReturn(Mono.just(true));
-        lenient().when(itemRedisTemplate.expire(anyString(), any())).thenReturn(Mono.just(true));
-
-        itemService = new ItemService(itemRepository, cartService, itemMapper, itemRedisTemplate);
+        itemService = spy(new ItemService(itemRepository, cartService, itemMapper, null));
+        try {
+            java.lang.reflect.Field field = ItemService.class.getDeclaredField("self");
+            field.setAccessible(true);
+            field.set(itemService, itemService);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test

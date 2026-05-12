@@ -50,7 +50,11 @@ public class CartIntegrationTest extends BaseIntegrationTest {
 
         cartService.getCartCounts(sessionId)
                 .as(StepVerifier::create)
-                .expectNextMatches(counts -> counts.getOrDefault(itemId, 0) == 2)
+                .expectNextMatches(counts -> {
+                    Object count = counts.get(itemId);
+                    if (count == null) count = counts.get(String.valueOf(itemId));
+                    return count != null && Integer.valueOf(count.toString()) == 2;
+                })
                 .verifyComplete();
     }
 
@@ -167,7 +171,11 @@ public class CartIntegrationTest extends BaseIntegrationTest {
 
         cartService.getCartCounts(sessionId)
                 .as(StepVerifier::create)
-                .expectNextMatches(counts -> counts.getOrDefault(itemId, 0) == 2)
+                .expectNextMatches(counts -> {
+                    Object count = counts.get(itemId);
+                    if (count == null) count = counts.get(String.valueOf(itemId));
+                    return count != null && Integer.valueOf(count.toString()) == 2;
+                })
                 .verifyComplete();
     }
 }

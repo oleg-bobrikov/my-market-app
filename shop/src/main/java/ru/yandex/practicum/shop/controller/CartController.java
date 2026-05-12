@@ -64,7 +64,8 @@ public class CartController extends BaseController{
                                         return rendering.build();
                                     })
                                     .onErrorResume(e -> {
-                                        log.error("Payment service error for session {}: {}", sessionUuid, e.getMessage());
+                                        log.error("Payment service error for session {}: {} (Type: {})", 
+                                                sessionUuid, e.getMessage(), e.getClass().getSimpleName());
                                         var itemsDto = items.stream().map(itemMapper::toDto).toList();
                                         return Mono.just(Rendering.view("cart")
                                                 .modelAttribute("items", itemsDto)

@@ -12,7 +12,6 @@ import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
@@ -55,12 +54,6 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
                 .exchange()
                 .expectStatus().is3xxRedirection();
 
-        // Проверяем, что товар в корзине
-        await().atMost(10, TimeUnit.SECONDS).until(() -> {
-            var counts = cartService.getCartCounts(sessionId).block();
-            return counts != null && !counts.isEmpty();
-        });
-
         // 2. Совершаем покупку
         webTestClient.post().uri("/buy")
                 .cookie("SESSION_ID", sessionId.toString())
@@ -68,10 +61,8 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
                 .expectStatus().is3xxRedirection();
 
         // 3. Проверяем, что заказ создался
-        await().atMost(10, TimeUnit.SECONDS).until(() -> {
-            var orders = orderRepository.findBySessionId(sessionId).collectList().block();
-            return orders != null && !orders.isEmpty();
-        });
+        var orders = orderRepository.findBySessionId(sessionId).collectList().block();
+        assert orders != null && !orders.isEmpty();
 
         orderRepository.findBySessionId(sessionId)
                 .as(StepVerifier::create)

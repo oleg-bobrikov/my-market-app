@@ -24,21 +24,21 @@ public class AccountRepositoryIntegrationTest {
         UUID accountId = UUID.randomUUID();
         AccountEntity account = AccountEntity.builder()
                 .id(accountId)
-                .amount(new BigDecimal("100.00"))
+                .amount(BigDecimal.valueOf(100))
                 .isNew(true)
                 .build();
 
         accountRepository.save(account)
-                .then(accountRepository.updateBalance(accountId, new BigDecimal("30.00")))
+                .then(accountRepository.updateBalance(accountId, BigDecimal.valueOf(30)))
                 .as(StepVerifier::create)
                 .expectNext(1) // 1 row updated
                 .verifyComplete();
 
         accountRepository.findById(accountId)
                 .as(StepVerifier::create)
-                .assertNext(updated -> {
-                    assertEquals(new BigDecimal("70.00"), updated.getAmount().setScale(2));
-                })
+                .assertNext(updated -> assertEquals(
+                        0,
+                        BigDecimal.valueOf(70).compareTo(updated.getAmount())))
                 .verifyComplete();
     }
 
@@ -47,21 +47,21 @@ public class AccountRepositoryIntegrationTest {
         UUID accountId = UUID.randomUUID();
         AccountEntity account = AccountEntity.builder()
                 .id(accountId)
-                .amount(new BigDecimal("20.00"))
+                .amount(BigDecimal.valueOf(20.0))
                 .isNew(true)
                 .build();
 
         accountRepository.save(account)
-                .then(accountRepository.updateBalance(accountId, new BigDecimal("30.00")))
+                .then(accountRepository.updateBalance(accountId, BigDecimal.valueOf(30.0)))
                 .as(StepVerifier::create)
                 .expectNext(0) // 0 rows updated
                 .verifyComplete();
 
         accountRepository.findById(accountId)
                 .as(StepVerifier::create)
-                .assertNext(result -> {
-                    assertEquals(new BigDecimal("20.00"), result.getAmount().setScale(2));
-                })
+                .assertNext(result -> assertEquals(
+                        0,
+                        BigDecimal.valueOf(20).compareTo(result.getAmount())))
                 .verifyComplete();
     }
 }
