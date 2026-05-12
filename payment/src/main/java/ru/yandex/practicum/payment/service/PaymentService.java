@@ -22,6 +22,9 @@ public class PaymentService {
 
     @Transactional
     public Mono<PaymentResponse> payOrder(UUID accountId, PaymentRequest paymentRequest) {
+        if (paymentRequest.getAmount() == null) {
+            return Mono.error(new IllegalArgumentException("Amount must not be null"));
+        }
         BigDecimal amountToPay = new BigDecimal(paymentRequest.getAmount());
         log.info("Запрос на оплату: accountId={}, orderId={}, amount={}", accountId, paymentRequest.getOrderId(), amountToPay);
         

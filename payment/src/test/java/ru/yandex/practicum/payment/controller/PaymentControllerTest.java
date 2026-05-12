@@ -76,4 +76,20 @@ class PaymentControllerTest {
                 .jsonPath("$.status").isEqualTo("ERROR")
                 .jsonPath("$.message").isEqualTo("Недостаточно средств на счете");
     }
+    @Test
+    void pay_WhenNoSessionId_ReturnsBadRequest() {
+        PaymentRequest request = new PaymentRequest();
+        request.setOrderId("order-1");
+        request.setAmount("100.00");
+
+        webTestClient.post()
+                .uri("/payments/api")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody()
+                .jsonPath("$.status").isEqualTo("ERROR")
+                .jsonPath("$.message").isEqualTo("Missing session_id header");
+    }
 }

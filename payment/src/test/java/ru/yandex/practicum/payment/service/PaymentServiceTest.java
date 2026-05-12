@@ -1,5 +1,6 @@
 package ru.yandex.practicum.payment.service;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,7 +63,8 @@ class PaymentServiceTest {
 
         StepVerifier.create(result)
                 .expectNextMatches(response ->
-                        response.getStatus() == PaymentStatus.SUCCESS &&
+                        PaymentStatus.SUCCESS.equals(response.getStatus()) &&
+                        response.getRemainingBalance() != null &&
                         new BigDecimal(response.getRemainingBalance()).compareTo(remaining) == 0
                 )
                 .verifyComplete();
@@ -78,7 +80,8 @@ class PaymentServiceTest {
 
         StepVerifier.create(result)
                 .expectNextMatches(balance -> 
-                        balance.getClientId().equals(sessionId) &&
+                        sessionId.equals(balance.getClientId()) &&
+                        balance.getBalance() != null &&
                         new BigDecimal(balance.getBalance()).compareTo(amount) == 0)
                 .verifyComplete();
     }
@@ -89,7 +92,6 @@ class PaymentServiceTest {
         PaymentRequest paymentRequest = new PaymentRequest();
         paymentRequest.setOrderId("order-1");
         paymentRequest.setAmount(amountToPay.toString());
-        BigDecimal defaultBalance = new BigDecimal(30_000);
 
         // Имитируем задержку при первом сохранении
         // При первом вызове findById возвращаем empty, чтобы сработал switchIfEmpty
@@ -145,18 +147,37 @@ class PaymentServiceTest {
     }
 
     @Test
-    void payOrder_SequentialPayments_ExceedingBalance_ShouldFail() {
-        BigDecimal order1 = new BigDecimal("3000");
-        BigDecimal order2 = new BigDecimal("15100");
-        BigDecimal order3 = new BigDecimal("15100");
+    void payOrder_whenSequentialPaymentsExceedBalance_ThrowsException() {
+        // Сначала вычисляем баланс
+        when(accountRepository.findById(sessionId))
+                .thenReturn(Mono.empty()); // Аккаунт еще не создан
+        when(accountRepository.save(any(AccountEntity.class))).thenAnswer(invocation -> {
+            AccountEntity savedAccount = invocation.getArgument(0);
+            return Mono.just(savedAccount);
+        });
 
-        java.util.concurrent.atomic.AtomicReference<BigDecimal> currentBalance = 
-            new java.util.concurrent.atomic.AtomicReference<>(new BigDecimal("30000"));
+        java.util.concurrent.atomic.AtomicReference<BigDecimal> currentBalance = new java.util.concurrent.atomic.AtomicReference<>();
 
-        when(accountRepository.findById(sessionId)).thenAnswer(inv -> 
+        paymentService.getBalance(sessionId)
+                .doOnNext(balance -> {
+                    Assertions.assertNotNull(balance.getBalance());
+                    currentBalance.set(new BigDecimal(balance.getBalance()));
+                })
+                .as(StepVerifier::create)
+                .expectNextCount(1)
+                .verifyComplete();
+
+        BigDecimal initialBalance = currentBalance.get();
+        BigDecimal order1 = initialBalance.divide(new BigDecimal("2"), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal order2 = initialBalance.divide(new BigDecimal("2"), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal order3 = new BigDecimal("1.00"); // Этот платеж должен превысить баланс
+
+        // Перенастраиваем моки для последовательных платежей
+        reset(accountRepository);
+        when(accountRepository.findById(sessionId)).thenAnswer(inv ->
             Mono.just(new AccountEntity(sessionId, currentBalance.get(), false))
         );
-        
+
         when(accountRepository.updateBalance(eq(sessionId), any(BigDecimal.class))).thenAnswer(invocation -> {
             BigDecimal amount = invocation.getArgument(1);
             if (currentBalance.get().compareTo(amount) >= 0) {
@@ -172,7 +193,11 @@ class PaymentServiceTest {
         req1.setAmount(order1.toString());
         paymentService.payOrder(sessionId, req1)
                 .as(StepVerifier::create)
-                .expectNextMatches(r -> r.getStatus() == PaymentStatus.SUCCESS && new BigDecimal(r.getRemainingBalance()).compareTo(new BigDecimal("27000")) == 0)
+                .expectNextMatches(r -> {
+                    if (!PaymentStatus.SUCCESS.equals(r.getStatus())) return false;
+                    Assertions.assertNotNull(r.getRemainingBalance());
+                    return new BigDecimal(r.getRemainingBalance()).compareTo(initialBalance.subtract(order1)) == 0;
+                })
                 .verifyComplete();
 
         // Второй платеж
@@ -181,7 +206,11 @@ class PaymentServiceTest {
         req2.setAmount(order2.toString());
         paymentService.payOrder(sessionId, req2)
                 .as(StepVerifier::create)
-                .expectNextMatches(r -> r.getStatus() == PaymentStatus.SUCCESS && new BigDecimal(r.getRemainingBalance()).compareTo(new BigDecimal("11900")) == 0)
+                .expectNextMatches(r -> {
+                    if (!PaymentStatus.SUCCESS.equals(r.getStatus())) return false;
+                    Assertions.assertNotNull(r.getRemainingBalance());
+                    return new BigDecimal(r.getRemainingBalance()).compareTo(initialBalance.subtract(order1).subtract(order2)) == 0;
+                })
                 .verifyComplete();
 
         // Третий платеж - должен зафейлиться
