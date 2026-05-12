@@ -10,7 +10,7 @@ import ru.yandex.practicum.shop.model.Item;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.repository.ItemRepository;
 
-import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -49,8 +49,19 @@ public class ItemService {
         return cartService.getCartCounts(sessionId).flatMapMany(cartCounts ->
                 self.getBaseItems(search, pageable).map(item -> {
                     Item newItem = item.toBuilder().build();
-                    Integer count = cartCounts.get(item.getId());
-                    newItem.setCount(count != null ? count : 0);
+                    int count;
+                    Object countObj = cartCounts.get(item.getId());
+                    if (countObj == null) {
+                        countObj = ((Map<?, ?>) cartCounts).get(item.getId().toString());
+                    }
+                    if (countObj instanceof Integer i) {
+                        count = i;
+                    } else if (countObj != null) {
+                        count = Integer.parseInt(countObj.toString());
+                    } else {
+                        count = 0;
+                    }
+                    newItem.setCount(count);
                     return newItem;
                 })
         );
@@ -60,8 +71,19 @@ public class ItemService {
         return self.findByItemId(id)
                 .zipWith(cartService.getCartCounts(sessionId)
                         .map(counts -> {
-                            Integer count = counts.get(id);
-                            return count != null ? count : 0;
+                            int count;
+                            Object countObj = counts.get(id);
+                            if (countObj == null) {
+                                countObj = ((Map<?, ?>) counts).get(id.toString());
+                            }
+                            if (countObj instanceof Integer i) {
+                                count = i;
+                            } else if (countObj != null) {
+                                count = Integer.parseInt(countObj.toString());
+                            } else {
+                                count = 0;
+                            }
+                            return count;
                         }))
                 .map(tuple -> {
                     Item item = tuple.getT1().toBuilder().build();
@@ -77,15 +99,30 @@ public class ItemService {
                         return Flux.empty();
                     }
 
-                    List<Long> keys = new java.util.ArrayList<>(counts.keySet());
-                    return Flux.fromIterable(keys)
-                            .flatMap(itemId -> self.findByItemId(itemId)
-                                    .map(item -> {
-                                        Item newItem = item.toBuilder().build();
-                                        Integer count = counts.get(itemId);
-                                        newItem.setCount(count != null ? count : 0);
-                                        return newItem;
-                                    }));
+                    return Flux.fromIterable(new java.util.ArrayList<>(counts.entrySet()))
+                            .flatMap(entry -> {
+                                long itemId;
+                                Object key = entry.getKey();
+                                if (key instanceof Long l) {
+                                    itemId = l;
+                                } else {
+                                    return Mono.empty();
+                                }
+
+                                return self.findByItemId(itemId)
+                                        .map(item -> {
+                                            Item newItem = item.toBuilder().build();
+                                            int count;
+                                            Object value = entry.getValue();
+                                            if (value instanceof Integer i) {
+                                                count = i;
+                                            } else {
+                                                count = 0;
+                                            }
+                                            newItem.setCount(count);
+                                            return newItem;
+                                        });
+                            });
                 });
     }
 }
