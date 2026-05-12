@@ -4,6 +4,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import ru.yandex.practicum.shop.dto.ItemDto;
 import ru.yandex.practicum.shop.entity.CartItemEntity;
 import ru.yandex.practicum.shop.model.CartAction;
 import ru.yandex.practicum.shop.model.Item;
@@ -59,7 +60,7 @@ public class CartService {
     @Cacheable(value = "carts", key = "#sessionId")
     public Mono<Map<Long, Integer>> getCartCounts(UUID sessionId) {
         if (sessionId == null) {
-            return Mono.just(Map.of());
+            return Mono.empty();
         }
         return cartRepository.findBySessionId(sessionId)
                 .collect(Collectors.toMap(

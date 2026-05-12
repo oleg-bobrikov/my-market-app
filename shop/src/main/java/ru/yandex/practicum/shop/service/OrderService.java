@@ -48,16 +48,13 @@ public class OrderService {
     }
 
     public Mono<Order> buy(UUID sessionId) {
+        if (sessionId == null) {
+            return Mono.error(new IllegalStateException("Session ID is null"));
+        }
         return calculateTotal(sessionId)
                 .flatMap(total -> getBalance(sessionId)
                         .zipWith(Mono.just(total))
                 )
-                .onErrorMap(e -> {
-                    if (e instanceof InsufficientFundsException) {
-                        return e;
-                    }
-                    return new PaymentServiceException(e.getMessage());
-                })
                 .flatMap(tuple -> {
                     BigDecimal balance = tuple.getT1();
                     BigDecimal total = tuple.getT2();
@@ -68,6 +65,12 @@ public class OrderService {
 
                     return paymentClient.pay(new PaymentRequest(sessionId.toString(), total), sessionId)
                             .then(createOrder(sessionId));
+                })
+                .onErrorMap(e -> {
+                    if (e instanceof InsufficientFundsException || e instanceof IllegalStateException) {
+                        return e;
+                    }
+                    return new PaymentServiceException(e.getMessage());
                 })
                 .as(transactionalOperator::transactional);
     }

@@ -46,45 +46,23 @@ public class ItemService {
     }
 
     public Flux<Item> getItems(String search, UUID sessionId, Pageable pageable) {
-        return cartService.getCartCounts(sessionId).flatMapMany(cartCounts ->
-                self.getBaseItems(search, pageable).map(item -> {
-                    Item newItem = item.toBuilder().build();
-                    int count;
-                    Object countObj = cartCounts.get(item.getId());
-                    if (countObj == null) {
-                        countObj = ((Map<?, ?>) cartCounts).get(item.getId().toString());
-                    }
-                    if (countObj instanceof Integer i) {
-                        count = i;
-                    } else if (countObj != null) {
-                        count = Integer.parseInt(countObj.toString());
-                    } else {
-                        count = 0;
-                    }
-                    newItem.setCount(count);
-                    return newItem;
-                })
-        );
+        return cartService.getCartCounts(sessionId)
+                .map(this::normalizeCartCounts)
+                .flatMapMany(cartCounts ->
+                        self.getBaseItems(search, pageable).map(item -> {
+                            Item newItem = item.toBuilder().build();
+                            int count = cartCounts.getOrDefault(item.getId(), 0);
+                            newItem.setCount(count);
+                            return newItem;
+                        })
+                );
     }
 
     public Mono<Item> findByItemIdAndSessionId(Long id, UUID sessionId) {
         return self.findByItemId(id)
                 .zipWith(cartService.getCartCounts(sessionId)
-                        .map(counts -> {
-                            int count;
-                            Object countObj = counts.get(id);
-                            if (countObj == null) {
-                                countObj = ((Map<?, ?>) counts).get(id.toString());
-                            }
-                            if (countObj instanceof Integer i) {
-                                count = i;
-                            } else if (countObj != null) {
-                                count = Integer.parseInt(countObj.toString());
-                            } else {
-                                count = 0;
-                            }
-                            return count;
-                        }))
+                        .map(this::normalizeCartCounts)
+                        .map(counts -> counts.getOrDefault(id, 0)))
                 .map(tuple -> {
                     Item item = tuple.getT1().toBuilder().build();
                     item.setCount(tuple.getT2());
@@ -94,35 +72,40 @@ public class ItemService {
 
     public Flux<Item> getCartItems(UUID sessionId) {
         return cartService.getCartCounts(sessionId)
+                .map(this::normalizeCartCounts)
                 .flatMapMany(counts -> {
                     if (counts.isEmpty()) {
                         return Flux.empty();
                     }
 
-                    return Flux.fromIterable(new java.util.ArrayList<>(counts.entrySet()))
-                            .flatMap(entry -> {
-                                long itemId;
-                                Object key = entry.getKey();
-                                if (key instanceof Long l) {
-                                    itemId = l;
-                                } else {
-                                    return Mono.empty();
-                                }
-
-                                return self.findByItemId(itemId)
-                                        .map(item -> {
-                                            Item newItem = item.toBuilder().build();
-                                            int count;
-                                            Object value = entry.getValue();
-                                            if (value instanceof Integer i) {
-                                                count = i;
-                                            } else {
-                                                count = 0;
-                                            }
-                                            newItem.setCount(count);
-                                            return newItem;
-                                        });
-                            });
+                    return Flux.fromIterable(counts.entrySet())
+                            .flatMap(entry -> self.findByItemId(entry.getKey())
+                                    .map(item -> {
+                                        Item newItem = item.toBuilder().build();
+                                        newItem.setCount(entry.getValue());
+                                        return newItem;
+                                    }));
                 });
+    }
+
+    private Map<Long, Integer> normalizeCartCounts(Map<?, ?> rawMap) {
+        if (rawMap == null || rawMap.isEmpty()) {
+            return java.util.Map.of();
+        }
+
+        return rawMap.entrySet().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        entry -> {
+                            Object key = entry.getKey();
+                            if (key instanceof Long) return (Long) key;
+                            if (key instanceof Integer) return ((Integer) key).longValue();
+                            return Long.parseLong(key.toString());
+                        },
+                        entry -> {
+                            Object value = entry.getValue();
+                            if (value instanceof Integer) return (Integer) value;
+                            return Integer.parseInt(value.toString());
+                        }
+                ));
     }
 }

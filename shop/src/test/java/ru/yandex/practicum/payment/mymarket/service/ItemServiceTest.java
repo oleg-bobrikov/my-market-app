@@ -74,6 +74,30 @@ class ItemServiceTest {
     }
 
     @Test
+    void getItems_WhenCartCountsHasStringKeys_NormalizesAndReturnsCorrectCounts() {
+        String search = "";
+        UUID sessionId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        ItemEntity itemEntity = ItemEntity.builder().id(1L).build();
+        Item itemModel = new Item();
+        itemModel.setId(1L);
+
+        // Имитируем ситуацию, когда Redis вернул Map со строковыми ключами
+        Map<String, Integer> rawCounts = Map.of("1", 10);
+
+        when(itemRepository.findAll(pageable)).thenReturn(Flux.just(itemEntity));
+        // Используем raw types или Map<?, ?> для имитации того, что может прийти из кэша
+        when(cartService.getCartCounts(sessionId)).thenReturn(just((Map) rawCounts));
+        when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
+
+        itemService.getItems(search, sessionId, pageable)
+                .as(StepVerifier::create)
+                .expectNextMatches(result -> result.getId().equals(1L) && result.getCount() == 10)
+                .verifyComplete();
+    }
+
+    @Test
     void getItems_WhenSearchAndSortByPrice_ReturnsMatchingItems() {
         String search = "phone";
         UUID sessionId = UUID.randomUUID();
