@@ -2,6 +2,7 @@ package ru.yandex.practicum.shop.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.userdetails.MapReactiveUserDetailsService;
@@ -12,26 +13,30 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler;
 import org.springframework.security.web.server.authentication.logout.RedirectServerLogoutSuccessHandler;
+import org.springframework.security.web.server.authentication.logout.SecurityContextServerLogoutHandler;
+import org.springframework.security.web.server.authentication.logout.WebSessionServerLogoutHandler;
+import org.springframework.security.web.server.authentication.logout.DelegatingServerLogoutHandler;
 import org.springframework.security.web.server.csrf.WebSessionServerCsrfTokenRepository;
 
 import java.net.URI;
+
+import org.springframework.stereotype.Service;
+import org.thymeleaf.extras.springsecurity6.dialect.SpringSecurityDialect;
+import reactor.core.publisher.Mono;
 
 @Configuration
 @EnableWebFluxSecurity
 public class SecurityConfig {
     @Bean
+    public SpringSecurityDialect springSecurityDialect() {
+        return new SpringSecurityDialect();
+    }
+
+    @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    @Bean
-    public MapReactiveUserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
-        UserDetails user = User.withUsername("user")
-                .password(passwordEncoder.encode("password"))
-                .roles("USER")
-                .build();
-        return new MapReactiveUserDetailsService(user);
-    }
 
     @Bean
     public WebSessionServerCsrfTokenRepository csrfTokenRepository() {
@@ -42,10 +47,11 @@ public class SecurityConfig {
     @Bean
     public RedirectServerLogoutSuccessHandler redirectServerLogoutSuccessHandler() {
         RedirectServerLogoutSuccessHandler logoutSuccessHandler = new RedirectServerLogoutSuccessHandler();
-        // При выходе перенаправляем его на домашнюю страницу
+        // При выходе перенаправляем на страницу логина с параметром logout
         logoutSuccessHandler.setLogoutSuccessUrl(URI.create("/"));
         return logoutSuccessHandler;
     }
+
 
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(
@@ -53,12 +59,21 @@ public class SecurityConfig {
             RedirectServerLogoutSuccessHandler redirectServerLogoutSuccessHandler,
             WebSessionServerCsrfTokenRepository csrfTokenRepository) {
         http
-                .csrf(csrf -> csrf
-                        .csrfTokenRepository(csrfTokenRepository)
-                )
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 // Явно разрешаем доступ к /login и / для всех
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/", "/items/**", "/api/images/**", "/login/**").permitAll()
+                        .pathMatchers(
+                                "/items/**",
+                                "/api/images/**",
+                                "/login/**",
+                                "/logout/**",
+                                "/register/**",
+                                "/favicon.ico",
+                                "/",
+                                "/cart/**",
+                                "/buy/**",
+                                "/orders/**"
+                        ).permitAll()
                         .anyExchange().authenticated()
                 )
                 // Настраиваем форму логина
@@ -69,12 +84,27 @@ public class SecurityConfig {
                                 // В случае успешного логина перенаправляем на /
                                 new RedirectServerAuthenticationSuccessHandler("/")
                         )
+                        .authenticationFailureHandler((exchange, ex) ->
+                                exchange.getExchange().getSession()
+                                        .doOnNext(session ->
+                                                session.getAttributes().put("flash_error", "bad_credentials"))
+                                        .then(Mono.fromRunnable(() -> {
+
+                                            exchange.getExchange().getResponse().setStatusCode(HttpStatus.FOUND);
+                                            exchange.getExchange().getResponse().getHeaders()
+                                                    .setLocation(URI.create("/login"));
+
+                                        })))
                 )
                 // Настраиваем обработку при выходе
                 .logout(logout -> logout
                         // URL страницы выхода
                         .logoutUrl("/logout")
                         .logoutSuccessHandler(redirectServerLogoutSuccessHandler)
+                        .logoutHandler(new DelegatingServerLogoutHandler(
+                                new SecurityContextServerLogoutHandler(),
+                                new WebSessionServerLogoutHandler()
+                        ))
                 );
 
         return http.build();

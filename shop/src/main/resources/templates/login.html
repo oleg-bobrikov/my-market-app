@@ -1,7 +1,6 @@
 <!-- src/main/resources/templates/login.html -->
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
       lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -22,11 +21,6 @@
             border: 1px solid #f5c6cb;
             color: #721c24;
         }
-        .alert-success {
-            background-color: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-        }
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100 bg-light">
@@ -34,45 +28,92 @@
     <div class="card shadow-sm login-container mx-auto">
         <div class="card-body">
             <h2 class="card-title text-center mb-4">Вход в систему</h2>
-
-            <!-- Сообщение об ошибке (видимо только при param.error) -->
-            <div th:if="${param.error != null && !param.error.isEmpty()}"
+            <!-- Сообщение об ошибке -->
+            <div th:if="${session.get('flash_error') != null}"
                  class="alert-message alert-error"
                  role="alert">
-                Неверное имя пользователя или пароль.
-            </div>
-
-            <div th:if="${param.logout != null && !param.logout.isEmpty()}"
-                 class="alert-message alert-success"
-                 role="alert">
-                Вы успешно вышли из системы.
+                <span th:if="${session.get('flash_error') == 'reg_failed'}">Ошибка регистрации. Попробуйте другое имя.</span>
+                <span th:if="${session.get('flash_error') == 'bad_credentials'}">Неверное имя пользователя или пароль.</span>
             </div>
 
             <!-- Форма входа -->
-            <form th:action="@{/login}" method="post">
-                <div class="mb-3">
-                    <label for="username" class="form-label">Имя пользователя</label>
-                    <input type="text"
-                           id="username"
-                           name="username"
-                           class="form-control"
-                           placeholder="Введите имя пользователя"
-                           required
-                           autofocus />
+            <div id="loginForm">
+                <form th:action="@{/login}" method="post">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Имя пользователя</label>
+                        <input type="text"
+                               id="username"
+                               name="username"
+                               class="form-control"
+                               placeholder="Введите имя пользователя"
+                               required
+                               autofocus />
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Пароль</label>
+                        <input type="password"
+                               id="password"
+                               name="password"
+                               class="form-control"
+                               placeholder="Введите пароль"
+                               required />
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Войти</button>
+                    </div>
+                </form>
+                <div class="text-center mt-3">
+                    Нет аккаунта? <a href="#" onclick="toggleForm()">Зарегистрироваться</a>
                 </div>
-                <div class="mb-3">
-                    <label for="password" class="form-label">Пароль</label>
-                    <input type="password"
-                           id="password"
-                           name="password"
-                           class="form-control"
-                           placeholder="Введите пароль"
-                           required />
+            </div>
+
+            <!-- Форма регистрации -->
+            <div id="registerForm" style="display: none;">
+                <form th:action="@{/register}" method="post">
+                    <div class="mb-3">
+                        <label for="reg_username" class="form-label">Имя пользователя</label>
+                        <input type="text"
+                               id="reg_username"
+                               name="username"
+                               class="form-control"
+                               placeholder="Придумайте имя пользователя"
+                               required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="reg_password" class="form-label">Пароль</label>
+                        <input type="password"
+                               id="reg_password"
+                               name="password"
+                               class="form-control"
+                               placeholder="Придумайте пароль"
+                               required />
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success">Зарегистрироваться</button>
+                    </div>
+                </form>
+                <div class="text-center mt-3">
+                    Уже есть аккаунт? <a href="#" onclick="toggleForm()">Войти</a>
                 </div>
-                <div class="d-grid">
-                    <button type="submit" class="btn btn-primary">Войти</button>
-                </div>
-            </form>
+            </div>
+
+            <script>
+                function toggleForm() {
+                    const loginForm = document.getElementById('loginForm');
+                    const registerForm = document.getElementById('registerForm');
+                    const title = document.querySelector('.card-title');
+
+                    if (loginForm.style.display === 'none') {
+                        loginForm.style.display = 'block';
+                        registerForm.style.display = 'none';
+                        title.innerText = 'Вход в систему';
+                    } else {
+                        loginForm.style.display = 'none';
+                        registerForm.style.display = 'block';
+                        title.innerText = 'Регистрация';
+                    }
+                }
+            </script>
         </div>
     </div>
 </div>
