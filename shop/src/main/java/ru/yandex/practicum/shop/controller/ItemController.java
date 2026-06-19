@@ -105,9 +105,9 @@ public class ItemController extends BaseController {
             @RequestParam(required = false) Long id,
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false, defaultValue = "NO") String sort,
-            @RequestParam(required = false, defaultValue = "5") Integer pageSize,
-            @RequestParam(required = false, defaultValue = "1") Integer pageNumber,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) Integer pageSize,
+            @RequestParam(required = false) Integer pageNumber,
             ServerWebExchange exchange
     ) {
         return exchange.getFormData().flatMap(formData -> {
@@ -117,9 +117,20 @@ public class ItemController extends BaseController {
 
             String finalAction = action != null ? action : getParam(formData, queryParams, "action");
             String finalSearch = search != null ? search : getParam(formData, queryParams, "search");
+            String finalSort = sort != null ? sort : getParam(formData, queryParams, "sort");
+
+            String pageSizeStr = getParam(formData, queryParams, "pageSize");
+            Integer finalPageSize = pageSizeStr != null ? Integer.valueOf(pageSizeStr) : pageSize;
+
+            String pageNumberStr = getParam(formData, queryParams, "pageNumber");
+            Integer finalPageNumber = pageNumberStr != null ? Integer.valueOf(pageNumberStr) : pageNumber;
+
+            if (finalPageSize == null) finalPageSize = 5;
+            if (finalPageNumber == null) finalPageNumber = 1;
+            if (finalSort == null) finalSort = "NO";
 
             log.debug("updateItemCount: id={}, action={}, search={}, sort={}, pageSize={}, pageNumber={}",
-                    finalId, finalAction, finalSearch, sort, pageSize, pageNumber);
+                    finalId, finalAction, finalSearch, finalSort, finalPageSize, finalPageNumber);
 
             if (finalId == null || finalAction == null) {
                 log.warn("Missing required parameters: id={}, action={}", finalId, finalAction);
@@ -139,9 +150,9 @@ public class ItemController extends BaseController {
             String redirectUrl = String.format(
                     "redirect:/items?search=%s&sort=%s&pageSize=%d&pageNumber=%d#item-%d",
                     finalSearch != null ? finalSearch : "",
-                    sort,
-                    pageSize,
-                    pageNumber,
+                    finalSort,
+                    finalPageSize,
+                    finalPageNumber,
                     finalId
             );
 
