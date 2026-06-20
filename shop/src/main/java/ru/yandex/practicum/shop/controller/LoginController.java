@@ -1,5 +1,6 @@
 package ru.yandex.practicum.shop.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
@@ -23,14 +24,32 @@ public class LoginController {
     private final PasswordEncoder passwordEncoder;
     private final ServerSecurityContextRepository securityContextRepository = new WebSessionServerSecurityContextRepository();
 
+    @Autowired
     public LoginController(InMemoryReactiveUserDetailService userDetailsService, PasswordEncoder passwordEncoder) {
         this.userDetailsService = userDetailsService;
         this.passwordEncoder = passwordEncoder;
     }
 
     @GetMapping("/login")
-    public Mono<String> login() {
-        return Mono.just("login");
+    public Mono<String> login(ServerWebExchange exchange) {
+        return exchange.getSession()
+                .doOnNext(session ->
+                        session.getAttributes().keySet().removeIf(key ->
+                                key.endsWith("_error") && !key.equals("login_error")
+                        )
+                )
+                .thenReturn("login");
+    }
+
+    @GetMapping("/register")
+    public Mono<String> getRegister(ServerWebExchange exchange) {
+        return exchange.getSession()
+                .doOnNext(session ->
+                        session.getAttributes().keySet().removeIf(key ->
+                                key.endsWith("_error") && !key.equals("registration_error")
+                        )
+                )
+                .thenReturn("registration");
     }
 
     @PostMapping("/register")
@@ -42,9 +61,8 @@ public class LoginController {
 
                     if (username == null || password == null) {
                         return exchange.getSession()
-                                .doOnNext(session ->
-                                        session.getAttributes().put("flash_error", "reg_failed"))
-                                .thenReturn("redirect:/login");
+                                .doOnNext(session -> session.getAttributes().put("registration_error", "Не заполнено имя пользователя или пароль."))
+                                .thenReturn("redirect:/register");
                     }
 
                     UserDetails user = User.withUsername(username.toLowerCase())
@@ -55,8 +73,8 @@ public class LoginController {
                     return userDetailsService.findByUsername(user.getUsername())
                             .flatMap(existingUser -> exchange.getSession()
                                     .doOnNext(session ->
-                                            session.getAttributes().put("flash_error", "reg_failed"))
-                                    .thenReturn("redirect:/login"))
+                                            session.getAttributes().put("registration_error", "Ошибка регистрации. Попробуйте другое имя."))
+                                    .thenReturn("redirect:/register"))
                             .switchIfEmpty(
                                     userDetailsService.addUser(user)
                                             .flatMap(savedUser -> {
@@ -69,9 +87,7 @@ public class LoginController {
                                                 return securityContextRepository.save(exchange, securityContext)
                                                         .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(securityContext)))
                                                         .then(exchange.getSession())
-                                                        .doOnNext(session ->
-                                                                session.getAttributes()
-                                                                        .put("flash_success", "registered"))
+                                                        .doOnNext(session -> session.getAttributes().remove("registration_error"))
                                                         .thenReturn("redirect:/");
                                             })
                             );

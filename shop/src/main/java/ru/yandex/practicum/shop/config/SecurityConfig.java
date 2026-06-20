@@ -5,9 +5,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.core.userdetails.MapReactiveUserDetailsService;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
@@ -20,7 +17,6 @@ import org.springframework.security.web.server.csrf.WebSessionServerCsrfTokenRep
 
 import java.net.URI;
 
-import org.springframework.stereotype.Service;
 import org.thymeleaf.extras.springsecurity6.dialect.SpringSecurityDialect;
 import reactor.core.publisher.Mono;
 
@@ -52,7 +48,6 @@ public class SecurityConfig {
         return logoutSuccessHandler;
     }
 
-
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(
             ServerHttpSecurity http,
@@ -80,20 +75,22 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         // URL страницы логина
                         .loginPage("/login")
-                        .authenticationSuccessHandler(
-                                // В случае успешного логина перенаправляем на /
-                                new RedirectServerAuthenticationSuccessHandler("/")
-                        )
+                        .authenticationSuccessHandler((exchange, auth) -> exchange.getExchange().getSession()
+                                .doOnNext(session -> {
+                                    session.getAttributes().remove("login_error");
+                                    session.getAttributes().remove("registration_error");
+                                })
+                                .then(new RedirectServerAuthenticationSuccessHandler("/")
+                                        .onAuthenticationSuccess(exchange, auth)
+                                ))
                         .authenticationFailureHandler((exchange, ex) ->
                                 exchange.getExchange().getSession()
                                         .doOnNext(session ->
-                                                session.getAttributes().put("flash_error", "bad_credentials"))
+                                                session.getAttributes().put("login_error", "Неверное имя пользователя или пароль."))
                                         .then(Mono.fromRunnable(() -> {
-
                                             exchange.getExchange().getResponse().setStatusCode(HttpStatus.FOUND);
                                             exchange.getExchange().getResponse().getHeaders()
                                                     .setLocation(URI.create("/login"));
-
                                         })))
                 )
                 // Настраиваем обработку при выходе

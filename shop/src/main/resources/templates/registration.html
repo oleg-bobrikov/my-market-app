@@ -27,41 +27,40 @@
 <div class="container my-auto">
     <div class="card shadow-sm login-container mx-auto">
         <div class="card-body">
-            <h2 class="card-title text-center mb-4">Вход в систему</h2>
-            <!-- Форма входа -->
-            <div id="loginForm" th:style="'display:block;'">
+            <h2 class="card-title text-center mb-4">Регистрация</h2>
+            <!-- Форма регистрации -->
+            <div id="registerForm" style="display:block;">
                 <!-- Сообщение об ошибке -->
-                <div th:if="${session.get('login_error') != null}"
+                <div th:if="${session.get('registration_error') != null}"
                      class="alert-message alert-error"
                      role="alert">
-                    <span th:text="${session.get('login_error')}"></span>
+                    <span th:text="${session.get('registration_error')}">Ошибка</span>
                 </div>
-                <form th:action="@{/login}" method="post">
+                <form th:action="@{/register}" method="post">
                     <div class="mb-3">
-                        <label for="username" class="form-label">Имя пользователя</label>
+                        <label for="reg_username" class="form-label">Имя пользователя</label>
                         <input type="text"
-                               id="username"
+                               id="reg_username"
                                name="username"
                                class="form-control"
-                               placeholder="Введите имя пользователя"
-                               required
-                               autofocus />
+                               placeholder="Придумайте имя пользователя"
+                               required />
                     </div>
                     <div class="mb-3">
-                        <label for="password" class="form-label">Пароль</label>
+                        <label for="reg_password" class="form-label">Пароль</label>
                         <input type="password"
-                               id="password"
+                               id="reg_password"
                                name="password"
                                class="form-control"
-                               placeholder="Введите пароль"
+                               placeholder="Придумайте пароль"
                                required />
                     </div>
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Войти</button>
+                        <button type="submit" class="btn btn-success">Зарегистрироваться</button>
                     </div>
                 </form>
                 <div class="text-center mt-3">
-                    Нет аккаунта? <a th:href="@{/register}">Зарегистрироваться</a>
+                    Уже есть аккаунт? <a th:href="@{/login}">Войти</a>
                 </div>
             </div>
         </div>
