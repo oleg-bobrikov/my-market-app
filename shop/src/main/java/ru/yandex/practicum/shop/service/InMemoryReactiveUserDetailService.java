@@ -16,7 +16,7 @@ public class InMemoryReactiveUserDetailService implements ReactiveUserDetailsSer
     public InMemoryReactiveUserDetailService() {
     }
 
-    public Mono<UserDetails> addUser(UserDetails user) {
+    public Mono<UserDetails> register(UserDetails user) {
         users.put(user.getUsername(), user);
         return Mono.just(users.get(user.getUsername()));
     }

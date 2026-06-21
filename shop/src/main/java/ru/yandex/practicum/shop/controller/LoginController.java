@@ -1,11 +1,6 @@
 package ru.yandex.practicum.shop.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.ReactiveSecurityContextHolder;
-import org.springframework.security.core.context.SecurityContextImpl;
-import org.springframework.security.web.server.context.ServerSecurityContextRepository;
-import org.springframework.security.web.server.context.WebSessionServerSecurityContextRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,13 +15,12 @@ import ru.yandex.practicum.shop.service.InMemoryReactiveUserDetailService;
 @Controller
 public class LoginController {
 
-    private final InMemoryReactiveUserDetailService userDetailsService;
+    private final InMemoryReactiveUserDetailService userService;
     private final PasswordEncoder passwordEncoder;
-    private final ServerSecurityContextRepository securityContextRepository = new WebSessionServerSecurityContextRepository();
 
     @Autowired
-    public LoginController(InMemoryReactiveUserDetailService userDetailsService, PasswordEncoder passwordEncoder) {
-        this.userDetailsService = userDetailsService;
+    public LoginController(InMemoryReactiveUserDetailService userService, PasswordEncoder passwordEncoder) {
+        this.userService = userService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -70,26 +64,14 @@ public class LoginController {
                             .roles("USER")
                             .build();
 
-                    return userDetailsService.findByUsername(user.getUsername())
+                    return userService.findByUsername(user.getUsername())
                             .flatMap(existingUser -> exchange.getSession()
                                     .doOnNext(session ->
                                             session.getAttributes().put("registration_error", "Ошибка регистрации. Попробуйте другое имя."))
                                     .thenReturn("redirect:/register"))
                             .switchIfEmpty(
-                                    userDetailsService.addUser(user)
-                                            .flatMap(savedUser -> {
-                                                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                                                        savedUser,
-                                                        null,
-                                                        savedUser.getAuthorities()
-                                                );
-                                                SecurityContextImpl securityContext = new SecurityContextImpl(auth);
-                                                return securityContextRepository.save(exchange, securityContext)
-                                                        .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(securityContext)))
-                                                        .then(exchange.getSession())
-                                                        .doOnNext(session -> session.getAttributes().remove("registration_error"))
-                                                        .thenReturn("redirect:/");
-                                            })
+                                    userService.register(user)
+                                            .thenReturn("redirect:/login")
                             );
                 });
     }
