@@ -30,6 +30,7 @@ public class LoginController {
                 .doOnNext(session ->
                         session.getAttributes().keySet().removeIf(key ->
                                 key.endsWith("_error") && !key.equals("login_error")
+                                        || key.equals("registration_success")
                         )
                 )
                 .thenReturn("login");
@@ -71,7 +72,14 @@ public class LoginController {
                                     .thenReturn("redirect:/register"))
                             .switchIfEmpty(
                                     userService.register(user)
-                                            .thenReturn("redirect:/login")
+                                            .then(exchange.getSession()
+                                                    .doOnNext(session ->
+                                                            session.getAttributes().put(
+                                                                    "registration_success",
+                                                                    "Регистрация успешно пройдена."
+                                                            )
+                                                    ))
+                                            .thenReturn("redirect:/register")
                             );
                 });
     }
