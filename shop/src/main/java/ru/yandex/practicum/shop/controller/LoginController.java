@@ -9,17 +9,17 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
-import ru.yandex.practicum.shop.service.InMemoryReactiveUserDetailService;
+import ru.yandex.practicum.shop.service.UserService;
 
 
 @Controller
 public class LoginController {
 
-    private final InMemoryReactiveUserDetailService userService;
+    private final UserService userService;
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public LoginController(InMemoryReactiveUserDetailService userService, PasswordEncoder passwordEncoder) {
+    public LoginController(UserService userService, PasswordEncoder passwordEncoder) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
     }

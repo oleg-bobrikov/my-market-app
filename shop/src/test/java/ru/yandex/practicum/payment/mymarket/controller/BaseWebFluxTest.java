@@ -18,7 +18,7 @@ import ru.yandex.practicum.shop.service.OrderService;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import ru.yandex.practicum.shop.mapper.CartItemMapper;
 import ru.yandex.practicum.shop.mapper.OrderMapper;
-import ru.yandex.practicum.shop.service.InMemoryReactiveUserDetailService;
+import ru.yandex.practicum.shop.service.InMemoryUserService;
 
 @WebFluxTest(controllers = {CartController.class, ItemController.class, OrderController.class, ImageController.class, GlobalErrorHandler.class, LoginController.class}, properties = {"spring.main.allow-bean-definition-overriding=true", "app.cookie.max-age=7d"})
 @ContextConfiguration(classes = {ru.yandex.practicum.shop.ShopApplication.class, ru.yandex.practicum.shop.config.SecurityConfig.class})
@@ -78,5 +78,5 @@ public class BaseWebFluxTest {
     protected OrderMapper orderMapper;
 
     @MockitoBean
-    protected InMemoryReactiveUserDetailService inMemoryReactiveUserDetailService;
+    protected InMemoryUserService inMemoryReactiveUserDetailService;
 }
