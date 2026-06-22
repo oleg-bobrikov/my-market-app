@@ -35,8 +35,8 @@
                     <h2>
                         <span class="badge text-bg-success">Витрина магазина</span>
                     </h2>
-                    <a href="/orders" class="btn btn-secondary ms-auto bi bi-file-earmark-text"> Заказы</a>
-                    <a href="/cart/items" class="btn btn-secondary bi bi-cart4"> Корзина</a>
+                    <a sec:authorize="isAuthenticated()" href="/orders" class="btn btn-secondary ms-auto bi bi-file-earmark-text"> Заказы</a>
+                    <a sec:authorize="isAuthenticated()" href="/cart/items" class="btn btn-secondary bi bi-cart4"> Корзина</a>
                     <div sec:authorize="isAuthenticated()" class="hstack gap-2">
                         <span class="badge rounded-pill text-bg-info bi bi-person-fill"> <span sec:authentication="name"></span></span>
                         <form th:action="@{/logout}" method="post" style="display: inline;">
@@ -86,7 +86,7 @@
                             <span class="badge text-bg-success justify-content-end" th:text="${item.price}+' руб.'"></span>
                         </h5>
                         <p class="card-text" th:text="${item.description}"></p>
-                        <form method="post" th:action="@{/items}" class="mt-auto">
+                        <form sec:authorize="isAuthenticated()" method="post" th:action="@{/items}" class="mt-auto">
                             <div class="hstack gap-3">
                                 <input type="hidden" name="id" th:value="${item.id}">
                                 <input type="hidden" name="search" th:value="${search}">
