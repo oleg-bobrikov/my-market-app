@@ -35,7 +35,7 @@
                             <button type="submit" class="btn btn-outline-danger bi bi-box-arrow-right"> Выйти</button>
                         </form>
                     </div>
-                    <a sec:authorize="isAnonymous()" href="/login" class="btn btn-outline-primary bi bi-box-arrow-in-right"> Войти</a>
+                    <a th:if="${#authentication == null || #authentication.name == 'anonymousUser'}" href="/login" class="btn btn-outline-primary bi bi-box-arrow-in-right"> Войти</a>
                 </div>
             </div>
         </div>
@@ -49,7 +49,7 @@
                             <span class="badge text-bg-success justify-content-end" th:text="${item.price}+' руб.'"></span>
                         </h5>
                         <p class="card-text" th:text="${item.description}"></p>
-                        <form th:action="@{${'/items/'+item.id}}" method="post">
+                        <form sec:authorize="isAuthenticated()" th:action="@{${'/items/'+item.id}}" method="post">
                             <div class="hstack gap-3">
                                 <button type="submit" class="btn btn-outline-secondary" name="action" value="MINUS">-</button>
                                 <span th:text="${item.count}"></span>
