@@ -13,8 +13,6 @@ import java.util.stream.Collectors;
 
 @Service
 public class DbUserService implements UserService{
-    private static final String DEFAULT_ROLE = "USER";
-
     private final UserRepository userRepository;
 
     public DbUserService(UserRepository userRepository) {
@@ -23,11 +21,10 @@ public class DbUserService implements UserService{
 
     @Override
     public Mono<UserDetails> register(UserDetails userDetails) {
-        String authorities = userDetails.getAuthorities().stream()
+        String roles = userDetails.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .map(DbUserService::removeRolePrefix)
                 .collect(Collectors.joining(","));
-        String roles = authorities.isBlank() ? DEFAULT_ROLE : authorities;
 
         return userRepository.findByLogin(userDetails.getUsername())
                 .flatMap(existingUser ->
@@ -56,14 +53,14 @@ public class DbUserService implements UserService{
 
     private static String[] parseRoles(String roles) {
         if (roles == null || roles.isBlank()) {
-            return new String[]{DEFAULT_ROLE};
+            return new String[]{};
         }
         String[] parsedRoles = Arrays.stream(roles.split(","))
                 .map(String::trim)
                 .filter(role -> !role.isBlank())
                 .map(DbUserService::removeRolePrefix)
                 .toArray(String[]::new);
-        return parsedRoles.length > 0 ? parsedRoles : new String[]{DEFAULT_ROLE};
+        return parsedRoles.length > 0 ? parsedRoles : new String[]{};
     }
 
     private static String removeRolePrefix(String role) {

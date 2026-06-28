@@ -17,6 +17,7 @@ public class LoginController {
 
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
+    private final String DEFAULT_ROLE = "USER";
 
     @Autowired
     public LoginController(UserService userService, PasswordEncoder passwordEncoder) {
@@ -49,6 +50,8 @@ public class LoginController {
 
     @PostMapping("/register")
     public Mono<String> register(ServerWebExchange exchange) {
+
+
         return exchange.getFormData()
                 .flatMap(formData -> {
                     String username = formData.getFirst("username");
@@ -62,6 +65,7 @@ public class LoginController {
 
                     UserDetails user = User.withUsername(username.toLowerCase())
                             .password(passwordEncoder.encode(password))
+                            .roles(DEFAULT_ROLE)
                             .build();
 
                     return userService.findByUsername(user.getUsername())
