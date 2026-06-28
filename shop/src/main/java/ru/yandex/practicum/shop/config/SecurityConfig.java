@@ -54,7 +54,7 @@ public class SecurityConfig {
             RedirectServerLogoutSuccessHandler redirectServerLogoutSuccessHandler,
             WebSessionServerCsrfTokenRepository csrfTokenRepository) {
         http
-                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository))
                 // Явно разрешаем доступ к /login и / для всех
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(

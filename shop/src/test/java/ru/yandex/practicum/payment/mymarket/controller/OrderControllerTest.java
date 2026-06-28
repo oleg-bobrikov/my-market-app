@@ -10,6 +10,7 @@ import ru.yandex.practicum.shop.model.Order;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
@@ -24,7 +25,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
 
         when(orderService.buy(sessionId)).thenReturn(Mono.just(order));
 
-        webTestClient.post().uri("/buy")
+        webTestClient.mutateWith(csrf()).post().uri("/buy")
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection()
@@ -43,7 +44,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
         when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
 
-        webTestClient.post().uri("/buy")
+        webTestClient.mutateWith(csrf()).post().uri("/buy")
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk()
@@ -62,7 +63,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
         when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
 
-        webTestClient.post().uri("/buy")
+        webTestClient.mutateWith(csrf()).post().uri("/buy")
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk()

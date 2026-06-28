@@ -11,6 +11,7 @@ import ru.yandex.practicum.shop.model.Item;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
 
 import static org.mockito.Mockito.*;
 
@@ -75,7 +76,7 @@ public class CartControllerTest extends BaseWebFluxTest {
         when(cartService.updateCartItem(eq(sessionId), eq(1L), eq(CartAction.PLUS))).thenReturn(Mono.empty());
         when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(item));
 
-        webTestClient.post().uri(uriBuilder -> uriBuilder.path("/cart/items")
+        webTestClient.mutateWith(csrf()).post().uri(uriBuilder -> uriBuilder.path("/cart/items")
                         .queryParam("id", "1")
                         .queryParam("action", "PLUS")
                         .build())
@@ -107,7 +108,7 @@ public class CartControllerTest extends BaseWebFluxTest {
         when(cartService.updateCartItem(eq(sessionId), eq(1L), eq(CartAction.PLUS))).thenReturn(Mono.empty());
         when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(item));
 
-        webTestClient.post().uri("/cart/items")
+        webTestClient.mutateWith(csrf()).post().uri("/cart/items")
                 .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
                 .body(org.springframework.web.reactive.function.BodyInserters.fromFormData("id", "1")
                         .with("action", "PLUS"))
