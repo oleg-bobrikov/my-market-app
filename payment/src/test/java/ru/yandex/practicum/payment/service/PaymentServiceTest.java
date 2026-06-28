@@ -32,11 +32,11 @@ class PaymentServiceTest {
     @InjectMocks
     private PaymentService paymentService;
 
-    private UUID sessionId;
+    private long accountId = 1L;
 
     @BeforeEach
     void setUp() {
-        sessionId = UUID.randomUUID();
+        accountId++;
     }
 
     @Test
@@ -48,18 +48,18 @@ class PaymentServiceTest {
         BigDecimal defaultBalance = new BigDecimal(30_000);
         BigDecimal remaining = defaultBalance.subtract(amountToPay);
 
-        when(accountRepository.findById(sessionId))
+        when(accountRepository.findById(accountId))
                 .thenReturn(Mono.empty()) // Первый вызов в getOrCreateAccount
-                .thenReturn(Mono.just(new AccountEntity(sessionId, remaining, false))); // Вызов после updateBalance
+                .thenReturn(Mono.just(new AccountEntity(accountId, remaining, false))); // Вызов после updateBalance
 
         when(accountRepository.save(any(AccountEntity.class))).thenAnswer(invocation -> {
             AccountEntity savedAccount = invocation.getArgument(0);
             return Mono.just(savedAccount);
         });
 
-        when(accountRepository.updateBalance(eq(sessionId), eq(amountToPay))).thenReturn(Mono.just(1));
+        when(accountRepository.updateBalance(eq(accountId), eq(amountToPay))).thenReturn(Mono.just(1));
 
-        Mono<PaymentResponse> result = paymentService.payOrder(sessionId, paymentRequest);
+        Mono<PaymentResponse> result = paymentService.payOrder(paymentRequest);
 
         StepVerifier.create(result)
                 .expectNextMatches(response ->
@@ -73,14 +73,14 @@ class PaymentServiceTest {
     @Test
     void getBalance_WhenAccountExists_ReturnsBalance() {
         BigDecimal amount = new BigDecimal("100.00");
-        AccountEntity account = new AccountEntity(sessionId, amount, false);
-        when(accountRepository.findById(sessionId)).thenReturn(Mono.just(account));
+        AccountEntity account = new AccountEntity(accountId, amount, false);
+        when(accountRepository.findById(accountId)).thenReturn(Mono.just(account));
 
-        Mono<Balance> result = paymentService.getBalance(sessionId);
+        Mono<Balance> result = paymentService.getBalance(accountId);
 
         StepVerifier.create(result)
-                .expectNextMatches(balance -> 
-                        sessionId.equals(balance.getClientId()) &&
+                .expectNextMatches(balance ->
+                        accountId ==balance.getClientId() &&
                         balance.getBalance() != null &&
                         new BigDecimal(balance.getBalance()).compareTo(amount) == 0)
                 .verifyComplete();
@@ -95,21 +95,21 @@ class PaymentServiceTest {
 
         // Имитируем задержку при первом сохранении
         // При первом вызове findById возвращаем empty, чтобы сработал switchIfEmpty
-        when(accountRepository.findById(sessionId))
+        when(accountRepository.findById(accountId))
                 .thenReturn(Mono.empty()); 
 
         when(accountRepository.save(any(AccountEntity.class))).thenAnswer(invocation -> {
             AccountEntity savedAccount = invocation.getArgument(0);
             // После сохранения findById должен возвращать этот аккаунт
-            when(accountRepository.findById(sessionId)).thenReturn(Mono.just(savedAccount));
+            when(accountRepository.findById(accountId)).thenReturn(Mono.just(savedAccount));
             return Mono.just(savedAccount).delayElement(java.time.Duration.ofMillis(200));
         });
 
-        when(accountRepository.updateBalance(eq(sessionId), eq(amountToPay))).thenReturn(Mono.just(1));
+        when(accountRepository.updateBalance(eq(accountId), eq(amountToPay))).thenReturn(Mono.just(1));
 
         // Запускаем два параллельных запроса
-        Mono<PaymentResponse> call1 = paymentService.payOrder(sessionId, paymentRequest);
-        Mono<PaymentResponse> call2 = paymentService.payOrder(sessionId, paymentRequest);
+        Mono<PaymentResponse> call1 = paymentService.payOrder(paymentRequest);
+        Mono<PaymentResponse> call2 = paymentService.payOrder(paymentRequest);
 
         StepVerifier.create(Mono.zip(call1, call2))
                 .expectNextMatches(tuple ->
@@ -129,7 +129,7 @@ class PaymentServiceTest {
         paymentRequest.setOrderId("order-fail");
         paymentRequest.setAmount(amountToPay.toString());
 
-        when(accountRepository.findById(sessionId))
+        when(accountRepository.findById(accountId))
                 .thenReturn(Mono.empty()); // Аккаунт не найден, будет создан
 
         when(accountRepository.save(any(AccountEntity.class))).thenAnswer(invocation -> {
@@ -137,9 +137,9 @@ class PaymentServiceTest {
             return Mono.just(savedAccount);
         });
 
-        when(accountRepository.updateBalance(eq(sessionId), eq(amountToPay))).thenReturn(Mono.just(0));
+        when(accountRepository.updateBalance(eq(accountId), eq(amountToPay))).thenReturn(Mono.just(0));
 
-        Mono<PaymentResponse> result = paymentService.payOrder(sessionId, paymentRequest);
+        Mono<PaymentResponse> result = paymentService.payOrder(paymentRequest);
 
         StepVerifier.create(result)
                 .expectError(InsufficientFundsException.class)
@@ -149,7 +149,7 @@ class PaymentServiceTest {
     @Test
     void payOrder_whenSequentialPaymentsExceedBalance_ThrowsException() {
         // Сначала вычисляем баланс
-        when(accountRepository.findById(sessionId))
+        when(accountRepository.findById(accountId))
                 .thenReturn(Mono.empty()); // Аккаунт еще не создан
         when(accountRepository.save(any(AccountEntity.class))).thenAnswer(invocation -> {
             AccountEntity savedAccount = invocation.getArgument(0);
@@ -158,7 +158,7 @@ class PaymentServiceTest {
 
         java.util.concurrent.atomic.AtomicReference<BigDecimal> currentBalance = new java.util.concurrent.atomic.AtomicReference<>();
 
-        paymentService.getBalance(sessionId)
+        paymentService.getBalance(accountId)
                 .doOnNext(balance -> {
                     Assertions.assertNotNull(balance.getBalance());
                     currentBalance.set(new BigDecimal(balance.getBalance()));
@@ -174,11 +174,11 @@ class PaymentServiceTest {
 
         // Перенастраиваем моки для последовательных платежей
         reset(accountRepository);
-        when(accountRepository.findById(sessionId)).thenAnswer(inv ->
-            Mono.just(new AccountEntity(sessionId, currentBalance.get(), false))
+        when(accountRepository.findById(accountId)).thenAnswer(inv ->
+            Mono.just(new AccountEntity(accountId, currentBalance.get(), false))
         );
 
-        when(accountRepository.updateBalance(eq(sessionId), any(BigDecimal.class))).thenAnswer(invocation -> {
+        when(accountRepository.updateBalance(eq(accountId), any(BigDecimal.class))).thenAnswer(invocation -> {
             BigDecimal amount = invocation.getArgument(1);
             if (currentBalance.get().compareTo(amount) >= 0) {
                 currentBalance.set(currentBalance.get().subtract(amount));
@@ -191,7 +191,7 @@ class PaymentServiceTest {
         PaymentRequest req1 = new PaymentRequest();
         req1.setOrderId("order1");
         req1.setAmount(order1.toString());
-        paymentService.payOrder(sessionId, req1)
+        paymentService.payOrder(req1)
                 .as(StepVerifier::create)
                 .expectNextMatches(r -> {
                     if (!PaymentStatus.SUCCESS.equals(r.getStatus())) return false;
@@ -204,7 +204,7 @@ class PaymentServiceTest {
         PaymentRequest req2 = new PaymentRequest();
         req2.setOrderId("order2");
         req2.setAmount(order2.toString());
-        paymentService.payOrder(sessionId, req2)
+        paymentService.payOrder(req2)
                 .as(StepVerifier::create)
                 .expectNextMatches(r -> {
                     if (!PaymentStatus.SUCCESS.equals(r.getStatus())) return false;
@@ -217,7 +217,7 @@ class PaymentServiceTest {
         PaymentRequest req3 = new PaymentRequest();
         req3.setOrderId("order3");
         req3.setAmount(order3.toString());
-        paymentService.payOrder(sessionId, req3)
+        paymentService.payOrder(req3)
                 .as(StepVerifier::create)
                 .expectError(InsufficientFundsException.class)
                 .verify();

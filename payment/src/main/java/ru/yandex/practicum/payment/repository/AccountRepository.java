@@ -7,10 +7,10 @@ import reactor.core.publisher.Mono;
 import ru.yandex.practicum.payment.entity.AccountEntity;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
-public interface AccountRepository extends ReactiveCrudRepository<AccountEntity, UUID> {
+
+public interface AccountRepository extends ReactiveCrudRepository<AccountEntity, Long> {
     @Modifying
     @Query("UPDATE accounts SET amount = amount - :amount WHERE account_id = :id AND amount >= :amount")
-    Mono<Integer> updateBalance(UUID id, BigDecimal amount);
+    Mono<Integer> updateBalance(Long accountId, BigDecimal amount);
 }

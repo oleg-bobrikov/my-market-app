@@ -11,7 +11,7 @@ import ru.yandex.practicum.payment.model.*;
 import ru.yandex.practicum.payment.repository.AccountRepository;
 
 import java.math.BigDecimal;
-import java.util.UUID;
+
 
 @Service
 @RequiredArgsConstructor
@@ -21,13 +21,12 @@ public class PaymentService {
     private final static BigDecimal DEFAULT_BALANCE = BigDecimal.valueOf(30_000);
 
     @Transactional
-    public Mono<PaymentResponse> payOrder(UUID accountId, PaymentRequest paymentRequest) {
-        if (paymentRequest.getAmount() == null) {
-            return Mono.error(new IllegalArgumentException("Amount must not be null"));
-        }
+    public Mono<PaymentResponse> payOrder(PaymentRequest paymentRequest) {
         BigDecimal amountToPay = new BigDecimal(paymentRequest.getAmount());
-        log.info("Запрос на оплату: accountId={}, orderId={}, amount={}", accountId, paymentRequest.getOrderId(), amountToPay);
+        var clientId = paymentRequest.getClientId();
+        log.info("Запрос на оплату: clientId={}, orderId={}, amount={}", clientId, paymentRequest.getOrderId(), amountToPay);
         
+        var accountId = paymentRequest.getClientId();
         return getOrCreateAccount(accountId)
                 .flatMap(account -> accountRepository.updateBalance(accountId, amountToPay)
                         .flatMap(rowsUpdated -> {
@@ -56,19 +55,19 @@ public class PaymentService {
                 });
     }
 
-    public Mono<Balance> getBalance(UUID sessionId) {
-        log.info("Запрос баланса для sessionId={}", sessionId);
-        return getOrCreateAccount(sessionId)
+    public Mono<Balance> getBalance(Long accountId) {
+        log.info("Запрос баланса для accountId={}", accountId);
+        return getOrCreateAccount(accountId)
                 .map(account -> {
                     Balance balance = new Balance();
                     balance.setClientId(account.getId());
                     balance.setBalance(account.getAmount().toString());
                     return balance;
                 })
-                .doOnNext(balance -> log.info("Баланс для sessionId={}: {}", sessionId, balance.getBalance()));
+                .doOnNext(balance -> log.info("Баланс accountId={}: {}", accountId, balance.getBalance()));
     }
 
-    private Mono<AccountEntity> getOrCreateAccount(UUID accountId) {
+    private Mono<AccountEntity> getOrCreateAccount(Long accountId) {
         return accountRepository.findById(accountId)
                 .switchIfEmpty(Mono.defer(() -> {
                     log.info("Создание нового аккаунта: accountId={}", accountId);

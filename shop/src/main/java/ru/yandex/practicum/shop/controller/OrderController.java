@@ -3,6 +3,7 @@ package ru.yandex.practicum.shop.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
@@ -11,14 +12,13 @@ import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.exception.InsufficientFundsException;
 import ru.yandex.practicum.shop.exception.PaymentServiceException;
+import ru.yandex.practicum.shop.security.CustomUserDetails;
 import ru.yandex.practicum.shop.service.CartService;
 import ru.yandex.practicum.shop.service.ItemService;
 import ru.yandex.practicum.shop.service.OrderService;
 
 import java.util.Map;
-import java.util.UUID;
 
-import static ru.yandex.practicum.shop.filter.SessionWebFilter.SESSION_ATTRIBUTE;
 
 @Slf4j
 @Controller
@@ -31,24 +31,25 @@ public class OrderController {
     private final ItemService itemService;
 
     @PostMapping("/buy")
-    public Mono<Rendering> buy(ServerWebExchange exchange) {
-        UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
-
-        return orderService.buy(sessionUuid)
+    public Mono<Rendering> buy(
+            ServerWebExchange exchange,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        Long userId = user.getUserId();
+        return orderService.buy(userId)
                 .map(order -> Rendering.redirectTo("/orders/" + order.getId()).build())
                 .onErrorResume(InsufficientFundsException.class,
-                        e -> renderCartWithError(sessionUuid, e.getMessage()))
+                        e -> renderCartWithError(userId, e.getMessage()))
                 .onErrorResume(PaymentServiceException.class, e -> {
                     log.error("Payment service error: {}", e.getMessage());
-                    return renderCartWithError(sessionUuid, "сервис платежей недоступен");
+                    return renderCartWithError(userId, "сервис платежей недоступен");
                 })
                 .onErrorResume(IllegalStateException.class,
                         e -> Mono.just(Rendering.redirectTo("/items").build())
                 );
     }
 
-    private Mono<Rendering> renderCartWithError(UUID sessionUuid, String error) {
-        return itemService.getCartItems(sessionUuid)
+    private Mono<Rendering> renderCartWithError(Long userId, String error) {
+        return itemService.getCartItems(userId)
                 .collectList()
                 .flatMap(items -> cartService.getTotalPrice(items)
                         .map(total -> {
@@ -65,11 +66,11 @@ public class OrderController {
     public Mono<Rendering> getOrder(
             @PathVariable Long id,
             @RequestParam(defaultValue = "false") boolean newOrder,
+            @AuthenticationPrincipal CustomUserDetails user,
             ServerWebExchange exchange
     ) {
-        UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
 
-        return orderService.getOrderByIdAndSessionId(id, sessionUuid)
+        return orderService.getOrderByIdAndSessionId(id, user.getUserId())
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Order not found")))
                 .zipWhen(order -> orderService.getOrderItems(id).map(itemMapper::toDto).collectList())
                 .map(tuple -> {
@@ -89,11 +90,10 @@ public class OrderController {
 
     @GetMapping("/orders")
     public Mono<Rendering> findBySessionId(
+            @AuthenticationPrincipal CustomUserDetails user,
             ServerWebExchange exchange
     ) {
-        UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
-
-        return orderService.findBySessionId(sessionUuid)
+        return orderService.findByUserId(user.getUserId())
                 .flatMap(order ->
                         orderService.getOrderItems(order.getId())
                                 .map(itemMapper::toDto)

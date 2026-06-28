@@ -2,17 +2,14 @@ package ru.yandex.practicum.payment.mymarket.integration;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import ru.yandex.practicum.shop.entity.ItemEntity;
 import ru.yandex.practicum.shop.model.Item;
 import ru.yandex.practicum.shop.repository.ItemRepository;
 import ru.yandex.practicum.shop.service.ItemService;
 
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 
 import org.springframework.cache.CacheManager;
 
@@ -75,7 +72,7 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getItems_WhenCartUpdated_ReturnsUpdatedCounts() {
-        UUID sessionId = UUID.randomUUID();
+        Long userId = 1L;
         String search = "cache_test";
         var pageable = org.springframework.data.domain.PageRequest.of(0, 10);
 
@@ -91,23 +88,23 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
         Long itemId = saved.getId();
 
         // 2. Запрашиваем список (пустая корзина)
-        List<Item> itemsBefore = itemService.getItems(search, sessionId, pageable).collectList().block();
+        List<Item> itemsBefore = itemService.getItems(search, userId, pageable).collectList().block();
         assertNotNull(itemsBefore);
         assertFalse(itemsBefore.isEmpty());
         assertEquals(0, itemsBefore.get(0).getCount(), "Count should be 0 for new session");
 
         // 3. Добавляем в корзину
-        cartService.updateCartItem(sessionId, itemId, ru.yandex.practicum.shop.model.CartAction.PLUS).block();
+        cartService.updateCartItem(userId, itemId, ru.yandex.practicum.shop.model.CartAction.PLUS).block();
 
         // 4. Запрашиваем список снова
-        List<Item> itemsAfter = itemService.getItems(search, sessionId, pageable).collectList().block();
+        List<Item> itemsAfter = itemService.getItems(search, userId, pageable).collectList().block();
         assertNotNull(itemsAfter);
         assertEquals(1, itemsAfter.get(0).getCount(), "Count should be updated even with caching");
     }
 
     @Test
     void getItems_WhenCalled_CachesList() {
-        UUID sessionId = UUID.randomUUID();
+        Long userId = 1L;
         String search = "unique_search";
         var pageable = org.springframework.data.domain.PageRequest.of(0, 10);
         
@@ -125,37 +122,37 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
         itemRepository.save(entity).block();
 
         // 2. Запрашиваем список
-        itemService.getItems(search, sessionId, pageable).collectList().block();
+        itemService.getItems(search, userId, pageable).collectList().block();
 
-        // 3. Проверяем, что в кэше что-то появилось
-        // Вместо попытки угадать ключ, проверяем, что кэш не пуст
+        // 3. Проверяем, что в кеше что-то появилось
+        // Вместо попытки угадать ключ, проверяем, что кеш не пуст
         org.springframework.data.redis.cache.RedisCache cache = (org.springframework.data.redis.cache.RedisCache) cacheManager.getCache("item-lists");
-        // Так как мы в интеграционном тесте с реальным Redis, мы можем проверить наличие хоть какой-то записи
+        // Так как мы в интеграционном тесте с реальным Redis, мы можем проверить наличие хоть какой-то записи,
         // Но проще всего добавить логирование ключей или использовать Native Cache
         assertNotNull(cache, "Cache item-lists should exist");
         
         // Попробуем найти ключ перебором или через RedisConnection если нужно, 
-        // но самый надежный способ для этого теста - это убедиться, что повторный вызов не идет в БД.
+        // но самый надежный способ для этого теста - убедиться, что повторный вызов не идет в БД.
         // Но раз мы уже проверили корректность обновления в getItems_WhenCartUpdated_ReturnsUpdatedCounts,
         // этот тест можно упростить или убрать sessionId из проверки.
     }
 
     @Test
     void getCartItems_WhenCached_DoesNotThrowClassCastException() {
-        UUID sessionId = UUID.randomUUID();
+        Long userId = 1L;
         Long itemId = 1L;
 
         // 1. Добавляем в корзину
-        cartService.updateCartItem(sessionId, itemId, ru.yandex.practicum.shop.model.CartAction.PLUS).block();
+        cartService.updateCartItem(userId, itemId, ru.yandex.practicum.shop.model.CartAction.PLUS).block();
 
-        // 2. Первый вызов - данные попадают в кэш
-        List<Item> itemsFirst = itemService.getCartItems(sessionId).collectList().block();
+        // 2. Первый вызов - данные попадают в кеш
+        List<Item> itemsFirst = itemService.getCartItems(userId).collectList().block();
         assertNotNull(itemsFirst);
         assertFalse(itemsFirst.isEmpty());
 
-        // 3. Второй вызов - данные берутся из кэша. 
+        // 3. Второй вызов - данные берутся из кеша.
         // Если ключи десериализовались как String, здесь будет ClassCastException
-        List<Item> itemsSecond = itemService.getCartItems(sessionId).collectList().block();
+        List<Item> itemsSecond = itemService.getCartItems(userId).collectList().block();
         assertNotNull(itemsSecond);
         assertEquals(itemsFirst.size(), itemsSecond.size());
     }

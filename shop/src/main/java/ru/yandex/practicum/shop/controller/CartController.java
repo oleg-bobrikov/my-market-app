@@ -3,6 +3,7 @@ package ru.yandex.practicum.shop.controller;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
@@ -11,18 +12,15 @@ import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.client.PaymentClient;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.model.CartAction;
+import ru.yandex.practicum.shop.security.CustomUserDetails;
 import ru.yandex.practicum.shop.service.CartService;
 import ru.yandex.practicum.shop.service.ItemService;
 
-import java.util.UUID;
-
-import static ru.yandex.practicum.shop.filter.SessionWebFilter.SESSION_ATTRIBUTE;
 
 @Slf4j
 @Controller
 @RequestMapping("/cart")
-@PreAuthorize("hasRole('USER')")
-public class CartController extends BaseController{
+public class CartController extends BaseController {
     private final CartService cartService;
     private final ItemService itemService;
     private final ItemMapper itemMapper;
@@ -37,23 +35,25 @@ public class CartController extends BaseController{
     }
 
     @GetMapping("/items")
+    @PreAuthorize("hasRole('USER')")
     public Mono<Rendering> getCartItems(
+            @AuthenticationPrincipal CustomUserDetails user,
             ServerWebExchange exchange) {
 
-        UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
-        if (sessionUuid == null) {
-            log.error("Session ID is missing from exchange attributes");
+        Long userId = user.getUserId();
+        if (userId == null) {
+            log.error("User is not authenticated");
             return Mono.just(Rendering.redirectTo("/items").build());
         }
 
-        return itemService.getCartItems(sessionUuid)
+        return itemService.getCartItems(userId)
                 .collectList()
                 .flatMap(items -> {
                     if (items.isEmpty()) {
                         return Mono.just(Rendering.redirectTo("/items").build());
                     }
                     return cartService.getTotalPrice(items)
-                            .flatMap(total -> paymentClient.getBalance(sessionUuid)
+                            .flatMap(total -> paymentClient.getBalance(userId)
                                     .map(balance -> {
                                         var itemsDto = items.stream().map(itemMapper::toDto).toList();
                                         var rendering = Rendering.view("cart")
@@ -66,8 +66,8 @@ public class CartController extends BaseController{
                                         return rendering.build();
                                     })
                                     .onErrorResume(e -> {
-                                        log.error("Payment service error for session {}: {} (Type: {})", 
-                                                sessionUuid, e.getMessage(), e.getClass().getSimpleName());
+                                        log.error("Payment service error for user_id {}: {} (Type: {})",
+                                                userId, e.getMessage(), e.getClass().getSimpleName());
                                         var itemsDto = items.stream().map(itemMapper::toDto).toList();
                                         return Mono.just(Rendering.view("cart")
                                                 .modelAttribute("items", itemsDto)
@@ -81,7 +81,9 @@ public class CartController extends BaseController{
     }
 
     @PostMapping("/items")
+    @PreAuthorize("hasRole('USER')")
     public Mono<String> updateCartItem(
+            @AuthenticationPrincipal CustomUserDetails user,
             ServerWebExchange exchange
     ) {
         return exchange.getFormData().flatMap(formData -> {
@@ -96,14 +98,14 @@ public class CartController extends BaseController{
 
             Long id = Long.valueOf(idStr);
             CartAction action = CartAction.valueOf(actionStr);
-            UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
-            if (sessionUuid == null) {
-                log.warn("Session ID is missing in updateCartItem");
-                return Mono.just("redirect:/items");
+            Long userId = user.getUserId();
+            if (userId == null) {
+                log.error("User is not authenticated");
+                return Mono.just(Rendering.redirectTo("/items").build());
             }
 
-            return cartService.updateCartItem(sessionUuid, id, action)
-                    .then(itemService.getCartItems(sessionUuid).collectList())
+            return cartService.updateCartItem(userId, id, action)
+                    .then(itemService.getCartItems(userId).collectList())
                     .map(cartItems -> cartItems.isEmpty() ? "redirect:/items" : "redirect:/cart/items");
         });
     }

@@ -6,6 +6,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
@@ -16,6 +17,7 @@ import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.model.CartAction;
 import ru.yandex.practicum.shop.model.PagingInfo;
 import ru.yandex.practicum.shop.model.SortType;
+import ru.yandex.practicum.shop.security.CustomUserDetails;
 import ru.yandex.practicum.shop.service.ItemService;
 import ru.yandex.practicum.shop.service.CartService;
 
@@ -50,10 +52,9 @@ public class ItemController extends BaseController {
             @RequestParam(required = false, defaultValue = "NO") SortType sort,
             @RequestParam(required = false, defaultValue = "5") int pageSize,
             @RequestParam(required = false, defaultValue = "1") int pageNumber,
+            @AuthenticationPrincipal CustomUserDetails user,
             ServerWebExchange exchange
     ) {
-
-        UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
 
         Sort sortOrder = switch (sort) {
             case ALPHA -> Sort.by("title").ascending();
@@ -62,8 +63,13 @@ public class ItemController extends BaseController {
         };
 
         Pageable pageable = PageRequest.of(pageNumber - 1, pageSize, sortOrder);
+        Long userId = user.getUserId();
+        if (userId == null) {
+            log.error("User is not authenticated");
+            return Mono.just(Rendering.redirectTo("/items").build());
+        }
 
-        return itemService.getItems(search, sessionUuid, pageable)
+        return itemService.getItems(search, userId, pageable)
                 .map(itemMapper::toDto)
                 .collectList()
                 .flatMap(content -> {
@@ -83,7 +89,7 @@ public class ItemController extends BaseController {
                             })
                             .toList();
 
-                    return itemService.getItems(search, sessionUuid, PageRequest.of(pageNumber, pageSize, sortOrder))
+                    return itemService.getItems(search, userId, PageRequest.of(pageNumber, pageSize, sortOrder))
                             .hasElements()
                             .map(hasNext -> Rendering.view("items")
                                     .modelAttribute("items", items)
@@ -110,6 +116,7 @@ public class ItemController extends BaseController {
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) Integer pageSize,
             @RequestParam(required = false) Integer pageNumber,
+            @AuthenticationPrincipal CustomUserDetails user,
             ServerWebExchange exchange
     ) {
         return exchange.getFormData().flatMap(formData -> {
@@ -147,8 +154,6 @@ public class ItemController extends BaseController {
                 return Mono.just("redirect:/items");
             }
 
-            UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
-
             String redirectUrl = String.format(
                     "redirect:/items?search=%s&sort=%s&pageSize=%d&pageNumber=%d#item-%d",
                     finalSearch != null ? finalSearch : "",
@@ -158,7 +163,7 @@ public class ItemController extends BaseController {
                     finalId
             );
 
-            return cartService.updateCartItem(sessionUuid, finalId, cartAction)
+            return cartService.updateCartItem(user.getUserId(), finalId, cartAction)
                     .thenReturn(redirectUrl);
         });
     }
@@ -166,11 +171,9 @@ public class ItemController extends BaseController {
     @GetMapping("/{id:[0-9]+}")
     public Mono<Rendering> getItem(
             @PathVariable Long id,
-            ServerWebExchange exchange
+            @AuthenticationPrincipal CustomUserDetails user
     ) {
-        UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
-
-        return itemService.findByItemIdAndSessionId(id, sessionUuid)
+        return itemService.findByItemIdAndUserId(id, user.getUserId())
                 .map(itemMapper::toDto)
                 .defaultIfEmpty(emptyItem())
                 .map(item -> Rendering.view("item")
@@ -188,7 +191,7 @@ public class ItemController extends BaseController {
     public Mono<String> updateItemCountOnPage(
             @PathVariable Long id,
             @RequestParam(required = false) String action,
-            ServerWebExchange exchange
+            @AuthenticationPrincipal CustomUserDetails user
     ) {
         log.debug("updateItemCountOnPage: id={}, action={}", id, action);
 
@@ -198,9 +201,8 @@ public class ItemController extends BaseController {
         }
 
         CartAction cartAction = CartAction.valueOf(action);
-        UUID sessionUuid = exchange.getAttribute(SESSION_ATTRIBUTE);
 
-        return cartService.updateCartItem(sessionUuid, id, cartAction)
+        return cartService.updateCartItem(user.getUserId(), id, cartAction)
                 .thenReturn("redirect:/items/" + id);
     }
 

@@ -9,18 +9,18 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
-import ru.yandex.practicum.shop.service.UserService;
+import ru.yandex.practicum.shop.security.ReactiveUserService;
 
 
 @Controller
 public class LoginController {
 
-    private final UserService userService;
+    private final ReactiveUserService userService;
     private final PasswordEncoder passwordEncoder;
     private final String DEFAULT_ROLE = "USER";
 
     @Autowired
-    public LoginController(UserService userService, PasswordEncoder passwordEncoder) {
+    public LoginController(ReactiveUserService userService, PasswordEncoder passwordEncoder) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
     }
@@ -50,7 +50,6 @@ public class LoginController {
 
     @PostMapping("/register")
     public Mono<String> register(ServerWebExchange exchange) {
-
 
         return exchange.getFormData()
                 .flatMap(formData -> {

@@ -7,17 +7,16 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.entity.CartItemEntity;
 
-import java.util.UUID;
 
 @Repository
 public interface CartRepository extends ReactiveCrudRepository<CartItemEntity, Long> {
-    Mono<CartItemEntity> findBySessionIdAndItemId(UUID sessionId, Long itemId);
+    Mono<CartItemEntity> findByUserIdAndItemId(Long userId, Long itemId);
 
-    Flux<CartItemEntity> findBySessionId(UUID sessionId);
+    Flux<CartItemEntity> findByUserId(Long userId);
 
     @Query("""
             DELETE FROM carts
-            WHERE session_id = :sessionId
+            WHERE user_id = :userId
             """)
-    Mono<Void> deleteBySessionId(UUID sessionId);
+    Mono<Void> deleteByUserId(Long userId);
 }

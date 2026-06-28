@@ -15,7 +15,6 @@ import ru.yandex.practicum.payment.service.PaymentService;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @WebFluxTest({PaymentController.class, PaymentExceptionHandler.class})
@@ -29,7 +28,6 @@ class PaymentControllerTest {
 
     @Test
     void pay_WhenSuccessful_ReturnsOk() {
-        UUID sessionId = UUID.randomUUID();
         PaymentRequest request = new PaymentRequest();
         request.setOrderId("order-1");
         request.setAmount("100.00");
@@ -39,12 +37,11 @@ class PaymentControllerTest {
         response.setOrderId("order-1");
         response.setRemainingBalance("900.00");
 
-        when(paymentService.payOrder(eq(sessionId), any(PaymentRequest.class)))
+        when(paymentService.payOrder(any(PaymentRequest.class)))
                 .thenReturn(Mono.just(response));
 
         webTestClient.post()
                 .uri("/payments/api")
-                .header("session_id", sessionId.toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(request)
                 .exchange()
@@ -62,7 +59,7 @@ class PaymentControllerTest {
         request.setOrderId("order-1");
         request.setAmount("1000.00");
 
-        when(paymentService.payOrder(eq(sessionId), any(PaymentRequest.class)))
+        when(paymentService.payOrder(any(PaymentRequest.class)))
                 .thenReturn(Mono.error(new ru.yandex.practicum.payment.exception.InsufficientFundsException("Недостаточно средств на счете")));
 
         webTestClient.post()

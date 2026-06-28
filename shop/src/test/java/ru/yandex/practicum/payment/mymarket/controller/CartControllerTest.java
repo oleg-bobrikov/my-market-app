@@ -20,18 +20,17 @@ public class CartControllerTest extends BaseWebFluxTest {
 
     @Test
     public void getCartItems_WhenPaymentServiceError_ReturnsCartViewWithErrorMessage() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        Long userId = 1L;
         Item item = Item.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
         List<Item> items = List.of(item);
         ItemDto itemDto = ItemDto.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
 
-        when(itemService.getCartItems(sessionId)).thenReturn(Flux.fromIterable(items));
+        when(itemService.getCartItems(userId)).thenReturn(Flux.fromIterable(items));
         when(cartService.getTotalPrice(items)).thenReturn(Mono.just(BigDecimal.TEN));
         when(itemMapper.toDto(item)).thenReturn(itemDto);
-        when(paymentClient.getBalance(sessionId)).thenReturn(Mono.error(new RuntimeException("Service Unavailable")));
+        when(paymentClient.getBalance(userId)).thenReturn(Mono.error(new RuntimeException("Service Unavailable")));
 
         webTestClient.mutateWith(mockUser()).get().uri("/cart/items")
-                .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -42,18 +41,17 @@ public class CartControllerTest extends BaseWebFluxTest {
 
     @Test
     public void getCartItems_WhenItemsExist_ReturnsCartView() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        Long userId = 1L;
         Item item = Item.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
         List<Item> items = List.of(item);
         ItemDto itemDto = ItemDto.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
 
-        when(itemService.getCartItems(sessionId)).thenReturn(Flux.fromIterable(items));
+        when(itemService.getCartItems(userId)).thenReturn(Flux.fromIterable(items));
         when(cartService.getTotalPrice(items)).thenReturn(Mono.just(BigDecimal.TEN));
         when(itemMapper.toDto(item)).thenReturn(itemDto);
-        when(paymentClient.getBalance(sessionId)).thenReturn(Mono.just(BigDecimal.valueOf(100)));
+        when(paymentClient.getBalance(userId)).thenReturn(Mono.just(BigDecimal.valueOf(100)));
 
         webTestClient.mutateWith(mockUser()).get().uri("/cart/items")
-                .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk();
     }
@@ -71,31 +69,29 @@ public class CartControllerTest extends BaseWebFluxTest {
 
     @Test
     public void updateCartItem_WhenActionPlus_RedirectsToCart() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        Long userId = 1L;
         Item item = Item.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
 
-        when(cartService.updateCartItem(eq(sessionId), eq(1L), eq(CartAction.PLUS))).thenReturn(Mono.empty());
-        when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(item));
+        when(cartService.updateCartItem(eq(userId), eq(1L), eq(CartAction.PLUS))).thenReturn(Mono.empty());
+        when(itemService.getCartItems(userId)).thenReturn(Flux.just(item));
 
         webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/cart/items")
                         .queryParam("id", "1")
                         .queryParam("action", "PLUS")
                         .build())
-                .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/cart/items");
 
-        verify(cartService).updateCartItem(eq(sessionId), eq(1L), eq(CartAction.PLUS));
+        verify(cartService).updateCartItem(eq(userId), eq(1L), eq(CartAction.PLUS));
     }
 
     @Test
     void getCartItems_WhenCartIsEmpty_RedirectsToItems() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        when(itemService.getCartItems(sessionId)).thenReturn(Flux.empty());
+        Long userId = 1L;
+        when(itemService.getCartItems(userId)).thenReturn(Flux.empty());
 
         webTestClient.mutateWith(mockUser()).get().uri("/cart/items")
-                .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/items");
@@ -103,21 +99,20 @@ public class CartControllerTest extends BaseWebFluxTest {
 
     @Test
     public void updateCartItem_WhenActionPlusByFormData_RedirectsToCart() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        Long userId = 1L;
         Item item = Item.builder().id(1L).title("Item 1").price(BigDecimal.TEN).count(1).build();
 
-        when(cartService.updateCartItem(eq(sessionId), eq(1L), eq(CartAction.PLUS))).thenReturn(Mono.empty());
-        when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(item));
+        when(cartService.updateCartItem(eq(userId), eq(1L), eq(CartAction.PLUS))).thenReturn(Mono.empty());
+        when(itemService.getCartItems(userId)).thenReturn(Flux.just(item));
 
         webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/cart/items")
                 .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
                 .body(org.springframework.web.reactive.function.BodyInserters.fromFormData("id", "1")
                         .with("action", "PLUS"))
-                .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/cart/items");
 
-        verify(cartService).updateCartItem(eq(sessionId), eq(1L), eq(CartAction.PLUS));
+        verify(cartService).updateCartItem(eq(userId), eq(1L), eq(CartAction.PLUS));
     }
 }

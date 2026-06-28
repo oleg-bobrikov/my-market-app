@@ -5,13 +5,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import ru.yandex.practicum.shop.entity.UserEntity;
 import ru.yandex.practicum.shop.repository.UserRepository;
-import ru.yandex.practicum.shop.service.DbUserService;
+import ru.yandex.practicum.shop.security.ReactiveUserService;
+import ru.yandex.practicum.shop.security.ReactiveUserServiceImpl;
 
 import java.util.Set;
 import java.util.Arrays;
@@ -29,11 +31,11 @@ class DbUserServiceTest {
     @Mock
     private UserRepository userRepository;
 
-    private DbUserService userService;
+    private ReactiveUserService userService;
 
     @BeforeEach
     void setUp() {
-        userService = new DbUserService(userRepository);
+        userService = new ReactiveUserServiceImpl(userRepository);
     }
 
     @Test
@@ -47,7 +49,7 @@ class DbUserServiceTest {
                 .id(1L)
                 .login("testadmin")
                 .password("password")
-                .roles("USER,ADMIN")
+                .authorities("ROLE_USER,ROLE_ADMIN")
                 .build();
 
         when(userRepository.findByLogin("testadmin")).thenReturn(Mono.empty());
@@ -65,8 +67,8 @@ class DbUserServiceTest {
             assertEquals("testadmin", entity.getLogin());
             assertEquals("password", entity.getPassword());
             assertEquals(
-                    Set.of("USER", "ADMIN"),
-                    Arrays.stream(entity.getRoles().split(",")).collect(Collectors.toSet())
+                    Set.of("ROLE_USER", "ROLE_ADMIN"),
+                    Arrays.stream(entity.getAuthorities().split(",")).collect(Collectors.toSet())
             );
             return true;
         }));
@@ -78,7 +80,7 @@ class DbUserServiceTest {
                 .id(2L)
                 .login("testuser")
                 .password("password")
-                .roles("USER, ADMIN")
+                .authorities("ROLE_USER,ROLE_ADMIN")
                 .build();
 
         when(userRepository.findByLogin("testuser")).thenReturn(Mono.just(entity));
@@ -87,7 +89,7 @@ class DbUserServiceTest {
                 .as(StepVerifier::create)
                 .expectNextMatches(userDetails -> {
                     Set<String> authorities = userDetails.getAuthorities().stream()
-                            .map(authority -> authority.getAuthority())
+                            .map(GrantedAuthority::getAuthority)
                             .collect(Collectors.toSet());
 
                     assertEquals("testuser", userDetails.getUsername());

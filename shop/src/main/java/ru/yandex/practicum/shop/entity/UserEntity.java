@@ -22,6 +22,6 @@ public class UserEntity {
     @Column("password")
     private String password;
 
-    @Column("roles")
-    private String roles;
+    @Column("authorities")
+    private String authorities;
 }

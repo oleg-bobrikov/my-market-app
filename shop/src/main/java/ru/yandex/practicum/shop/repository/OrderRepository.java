@@ -7,20 +7,19 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.entity.OrderEntity;
 
-import java.util.UUID;
 
 @Repository
 public interface OrderRepository extends ReactiveCrudRepository<OrderEntity, Long> {
     @Query("""
             SELECT
                 orders.id,
-                orders.session_id,
+                orders.user_id,
                 orders.total
             FROM orders
-                 WHERE orders.session_id = :sessionId
+                 WHERE orders.user_id = :userId
             ORDER BY orders.id
             """)
-    Flux<OrderEntity> findBySessionId(UUID sessionId);
+    Flux<OrderEntity> findByUserId(Long userId);
 
-    Mono<OrderEntity> findByIdAndSessionId(Long id, UUID sessionId);
+    Mono<OrderEntity> findByIdAndUserId(Long id, Long userId);
 }

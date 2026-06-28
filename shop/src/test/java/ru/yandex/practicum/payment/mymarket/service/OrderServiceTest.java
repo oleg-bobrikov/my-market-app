@@ -1,6 +1,5 @@
 package ru.yandex.practicum.payment.mymarket.service;
 
-import com.github.f4b6a3.uuid.UuidCreator;
 import org.mockito.ArgumentMatchers;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import org.junit.jupiter.api.Test;
@@ -34,7 +33,6 @@ import ru.yandex.practicum.shop.service.ItemService;
 import ru.yandex.practicum.shop.service.OrderService;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -83,43 +81,43 @@ class OrderServiceTest {
 
     @Test
     void createOrder_WhenSuccessful_CreatesOrder() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        Long userId = 1L;
         Item item = new Item();
         item.setId(1L);
         item.setPrice(new BigDecimal("100.00"));
         item.setCount(2);
 
-        OrderEntity entity = OrderEntity.builder().sessionId(sessionId).total(new BigDecimal("200.00")).build();
-        Order savedModel = Order.builder().id(10L).sessionId(sessionId).total(new BigDecimal("200.00")).build();
-        OrderEntity savedEntity = OrderEntity.builder().id(10L).sessionId(sessionId).total(new BigDecimal("200.00")).build();
+        OrderEntity entity = OrderEntity.builder().userId(userId).total(new BigDecimal("200.00")).build();
+        Order savedModel = Order.builder().id(10L).userId(userId).total(new BigDecimal("200.00")).build();
+        OrderEntity savedEntity = OrderEntity.builder().id(10L).userId(userId).total(new BigDecimal("200.00")).build();
 
-        when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(item));
+        when(itemService.getCartItems(userId)).thenReturn(Flux.just(item));
         when(cartService.getTotalPrice(anyList())).thenReturn(Mono.just(new BigDecimal("200.00")));
         when(orderMapper.toEntity(any(Order.class))).thenReturn(entity);
         when(orderRepository.save(any(OrderEntity.class))).thenReturn(Mono.just(savedEntity));
         when(orderMapper.toModel(savedEntity)).thenReturn(savedModel);
         when(orderMapper.toEntity(any(OrderItem.class))).thenReturn(new OrderItemEntity());
         when(orderItemRepository.saveAll(ArgumentMatchers.<Publisher<OrderItemEntity>>any())).thenReturn(Flux.empty());
-        when(cartRepository.deleteBySessionId(sessionId)).thenReturn(Mono.empty());
-        when(cartService.clearCart(sessionId)).thenReturn(Mono.empty());
+        when(cartRepository.deleteByUserId(userId)).thenReturn(Mono.empty());
+        when(cartService.clearCart(userId)).thenReturn(Mono.empty());
 
-        orderService.createOrder(sessionId)
+        orderService.createOrder(userId)
                 .as(StepVerifier::create)
                 .expectNextMatches(order -> order.getId().equals(10L) && order.getTotal().compareTo(new BigDecimal("200.00")) == 0)
                 .verifyComplete();
 
         verify(orderRepository).save(any(OrderEntity.class));
         verify(orderItemRepository).saveAll(ArgumentMatchers.<Publisher<OrderItemEntity>>any());
-        verify(cartRepository).deleteBySessionId(sessionId);
-        verify(cartService).clearCart(sessionId);
+        verify(cartRepository).deleteByUserId(userId);
+        verify(cartService).clearCart(userId);
     }
 
     @Test
     void createOrder_WhenCartIsEmpty_ThrowsException() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        when(itemService.getCartItems(sessionId)).thenReturn(Flux.empty());
+        Long userId = 1L;
+        when(itemService.getCartItems(userId)).thenReturn(Flux.empty());
 
-        orderService.createOrder(sessionId)
+        orderService.createOrder(userId)
                 .as(StepVerifier::create)
                 .expectError(IllegalStateException.class)
                 .verify();
@@ -161,25 +159,25 @@ class OrderServiceTest {
     @Test
     void buy_WhenPaymentSuccessful_CreatesOrder() {
         mockTransactional();
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        Long userId = 1L;
         BigDecimal total = new BigDecimal("200.00");
         BigDecimal balance = new BigDecimal("300.00");
-        Order savedModel = Order.builder().id(10L).sessionId(sessionId).total(total).build();
-        OrderEntity savedEntity = OrderEntity.builder().id(10L).sessionId(sessionId).total(total).build();
+        Order savedModel = Order.builder().id(10L).userId(userId).total(total).build();
+        OrderEntity savedEntity = OrderEntity.builder().id(10L).userId(userId).total(total).build();
 
-        when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(new Item()));
+        when(itemService.getCartItems(userId)).thenReturn(Flux.just(new Item()));
         when(cartService.getTotalPrice(anyList())).thenReturn(Mono.just(total));
-        when(paymentClient.getBalance(sessionId)).thenReturn(Mono.just(balance));
-        when(paymentClient.pay(any(PaymentRequest.class), eq(sessionId))).thenReturn(Mono.empty());
+        when(paymentClient.getBalance(userId)).thenReturn(Mono.just(balance));
+        when(paymentClient.pay(any(PaymentRequest.class), eq(userId))).thenReturn(Mono.empty());
         when(orderMapper.toEntity(any(Order.class))).thenReturn(new OrderEntity());
         when(orderRepository.save(any(OrderEntity.class))).thenReturn(Mono.just(savedEntity));
         when(orderMapper.toModel(savedEntity)).thenReturn(savedModel);
         when(orderMapper.toEntity(any(OrderItem.class))).thenReturn(new OrderItemEntity());
         when(orderItemRepository.saveAll(ArgumentMatchers.<Publisher<OrderItemEntity>>any())).thenReturn(Flux.empty());
-        when(cartRepository.deleteBySessionId(sessionId)).thenReturn(Mono.empty());
-        when(cartService.clearCart(sessionId)).thenReturn(Mono.empty());
+        when(cartRepository.deleteByUserId(userId)).thenReturn(Mono.empty());
+        when(cartService.clearCart(userId)).thenReturn(Mono.empty());
 
-        orderService.buy(sessionId)
+        orderService.buy(userId)
                 .as(StepVerifier::create)
                 .expectNextMatches(order -> order.getId().equals(10L))
                 .verifyComplete();
@@ -188,15 +186,15 @@ class OrderServiceTest {
     @Test
     void buy_WhenBalanceInsufficient_ThrowsException() {
         mockTransactional();
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        Long userId = 1L;
         BigDecimal total = new BigDecimal("200.00");
         BigDecimal balance = new BigDecimal("150.00");
 
-        when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(new Item()));
+        when(itemService.getCartItems(userId)).thenReturn(Flux.just(new Item()));
         when(cartService.getTotalPrice(anyList())).thenReturn(Mono.just(total));
-        when(paymentClient.getBalance(sessionId)).thenReturn(Mono.just(balance));
+        when(paymentClient.getBalance(userId)).thenReturn(Mono.just(balance));
 
-        orderService.buy(sessionId)
+        orderService.buy(userId)
                 .as(StepVerifier::create)
                 .expectError(InsufficientFundsException.class)
                 .verify();
@@ -205,14 +203,14 @@ class OrderServiceTest {
     @Test
     void buy_WhenPaymentServiceFails_ThrowsException() {
         mockTransactional();
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         BigDecimal total = new BigDecimal("200.00");
+        Long userId = 1L;
 
-        when(itemService.getCartItems(sessionId)).thenReturn(Flux.just(new Item()));
+        when(itemService.getCartItems(userId)).thenReturn(Flux.just(new Item()));
         when(cartService.getTotalPrice(anyList())).thenReturn(Mono.just(total));
-        when(paymentClient.getBalance(sessionId)).thenReturn(Mono.error(new RuntimeException("Conn error")));
+        when(paymentClient.getBalance(userId)).thenReturn(Mono.error(new RuntimeException("Conn error")));
 
-        orderService.buy(sessionId)
+        orderService.buy(userId)
                 .as(StepVerifier::create)
                 .expectError(PaymentServiceException.class)
                 .verify();
@@ -221,18 +219,18 @@ class OrderServiceTest {
     @Test
     void getOrderByIdAndSessionId_WhenOrderExists_ReturnsOrder() {
         Long orderId = 1L;
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        OrderEntity entity = OrderEntity.builder().id(orderId).sessionId(sessionId).build();
-        Order model = Order.builder().id(orderId).sessionId(sessionId).build();
+        Long userId = 1L;
+        OrderEntity entity = OrderEntity.builder().id(orderId).userId(userId).build();
+        Order model = Order.builder().id(orderId).userId(userId).build();
 
-        when(orderRepository.findByIdAndSessionId(orderId, sessionId)).thenReturn(Mono.just(entity));
+        when(orderRepository.findByIdAndUserId(orderId, userId)).thenReturn(Mono.just(entity));
         when(orderMapper.toModel(entity)).thenReturn(model);
 
-        orderService.getOrderByIdAndSessionId(orderId, sessionId)
+        orderService.getOrderByIdAndSessionId(orderId, userId)
                 .as(StepVerifier::create)
                 .expectNext(model)
                 .verifyComplete();
 
-        verify(orderRepository).findByIdAndSessionId(orderId, sessionId);
+        verify(orderRepository).findByIdAndUserId(orderId, userId);
     }
 }

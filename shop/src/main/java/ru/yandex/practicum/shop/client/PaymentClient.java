@@ -11,7 +11,6 @@ import ru.yandex.practicum.shop.exception.InsufficientFundsException;
 import ru.yandex.practicum.shop.exception.PaymentServiceException;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 @Component
 public class PaymentClient {
@@ -23,9 +22,9 @@ public class PaymentClient {
         this.paymentApi = new DefaultApi(apiClient);
     }
 
-    public Mono<BigDecimal> getBalance(UUID sessionId) {
+    public Mono<BigDecimal> getBalance(Long userId) {
         DefaultApi localApi = new DefaultApi(new ApiClient().setBasePath(paymentApi.getApiClient().getBasePath()));
-        localApi.getApiClient().setApiKey(sessionId.toString());
+        localApi.getApiClient().setApiKey(userId.toString());
         return localApi.getBalance()
                 .map(balance -> balance.getBalance() == null
                         ? BigDecimal.ZERO
@@ -39,12 +38,12 @@ public class PaymentClient {
                 );
     }
 
-    public Mono<Void> pay(ru.yandex.practicum.shop.client.model.PaymentRequest paymentRequest, UUID sessionId) {
+    public Mono<Void> pay(ru.yandex.practicum.shop.client.model.PaymentRequest paymentRequest) {
         DefaultApi localApi = new DefaultApi(new ApiClient().setBasePath(paymentApi.getApiClient().getBasePath()));
-        localApi.getApiClient().setApiKey(sessionId.toString());
+        localApi.getApiClient().setApiKey(paymentRequest.userId().toString());
 
         PaymentRequest apiRequest = new PaymentRequest();
-        apiRequest.setOrderId(paymentRequest.orderId());
+        apiRequest.setOrderId(paymentRequest.orderId().toString());
         apiRequest.setAmount(paymentRequest.amount().toString());
 
         return localApi.payOrder(apiRequest)
