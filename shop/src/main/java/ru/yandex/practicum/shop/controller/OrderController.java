@@ -2,6 +2,7 @@ package ru.yandex.practicum.shop.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
@@ -22,6 +23,7 @@ import static ru.yandex.practicum.shop.filter.SessionWebFilter.SESSION_ATTRIBUTE
 @Slf4j
 @Controller
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('USER')")
 public class OrderController {
     private final OrderService orderService;
     private final ItemMapper itemMapper;

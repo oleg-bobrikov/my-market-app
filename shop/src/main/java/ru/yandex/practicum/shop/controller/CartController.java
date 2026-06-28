@@ -2,6 +2,7 @@ package ru.yandex.practicum.shop.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
@@ -20,6 +21,7 @@ import static ru.yandex.practicum.shop.filter.SessionWebFilter.SESSION_ATTRIBUTE
 @Slf4j
 @Controller
 @RequestMapping("/cart")
+@PreAuthorize("hasRole('USER')")
 public class CartController extends BaseController{
     private final CartService cartService;
     private final ItemService itemService;

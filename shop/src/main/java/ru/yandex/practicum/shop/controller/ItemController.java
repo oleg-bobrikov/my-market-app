@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
@@ -101,6 +102,7 @@ public class ItemController extends BaseController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('USER')")
     public Mono<String> updateItemCount(
             @RequestParam(required = false) Long id,
             @RequestParam(required = false) String action,
@@ -182,6 +184,7 @@ public class ItemController extends BaseController {
     }
 
     @PostMapping("/{id:[0-9]+}")
+    @PreAuthorize("hasRole('USER')")
     public Mono<String> updateItemCountOnPage(
             @PathVariable Long id,
             @RequestParam(required = false) String action,
