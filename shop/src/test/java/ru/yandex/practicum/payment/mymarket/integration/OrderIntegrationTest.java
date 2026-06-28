@@ -44,7 +44,7 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
         when(paymentClient.pay(any(), any())).thenReturn(Mono.empty());
 
         // 1. Добавляем товар в корзину
-        webTestClient.mutateWith(csrf()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", CartAction.PLUS.name())
                         .queryParam("search", "")

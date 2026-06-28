@@ -21,7 +21,7 @@ public class CartIntegrationTest extends BaseIntegrationTest {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         Long itemId = 1L;
 
-        webTestClient.mutateWith(csrf()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", itemId.toString())
                         .queryParam("action", "PLUS")
                         .queryParam("search", "test")
@@ -39,7 +39,7 @@ public class CartIntegrationTest extends BaseIntegrationTest {
                 .verifyComplete();
 
         // Increase count
-        webTestClient.mutateWith(csrf()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", itemId.toString())
                         .queryParam("action", "PLUS")
                         .queryParam("search", "")
@@ -68,7 +68,7 @@ public class CartIntegrationTest extends BaseIntegrationTest {
         long itemId = 1L;
 
         // Add item first
-        webTestClient.mutateWith(csrf()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", "PLUS")
                         .queryParam("search", "")
@@ -81,7 +81,7 @@ public class CartIntegrationTest extends BaseIntegrationTest {
                 .expectStatus().is3xxRedirection();
 
         // Decrease count
-        webTestClient.mutateWith(csrf()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", "MINUS")
                         .queryParam("search", "")
@@ -106,7 +106,7 @@ public class CartIntegrationTest extends BaseIntegrationTest {
 
         // Добавляем товар в корзину (2 штуки)
         for (int i = 0; i < 2; i++) {
-            webTestClient.mutateWith(csrf()).post().uri(uriBuilder -> uriBuilder.path("/items")
+            webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
                             .queryParam("id", Long.toString(itemId))
                             .queryParam("action", "PLUS")
                             .queryParam("search", "")
@@ -131,7 +131,7 @@ public class CartIntegrationTest extends BaseIntegrationTest {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         long itemId = 1L;
 
-        webTestClient.mutateWith(csrf()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", "PLUS")
                         .queryParam("search", "")
@@ -154,7 +154,7 @@ public class CartIntegrationTest extends BaseIntegrationTest {
         UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         long itemId = 1L;
 
-        webTestClient.mutateWith(csrf()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", "PLUS")
                         .queryParam("search", "")
