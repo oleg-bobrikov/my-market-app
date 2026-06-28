@@ -14,6 +14,9 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockUser;
+
 public class CartButtonVisibilityTest extends BaseWebFluxTest {
 
     @Test
@@ -29,7 +32,7 @@ public class CartButtonVisibilityTest extends BaseWebFluxTest {
         // Баланс 50, нужно 100
         when(paymentClient.getBalance(sessionId)).thenReturn(Mono.just(BigDecimal.valueOf(50)));
 
-        webTestClient.get().uri("/cart/items")
+        webTestClient.mutateWith(mockUser()).get().uri("/cart/items")
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk()
@@ -53,7 +56,7 @@ public class CartButtonVisibilityTest extends BaseWebFluxTest {
         // Сервис платежей возвращает ошибку
         when(paymentClient.getBalance(sessionId)).thenReturn(Mono.error(new RuntimeException("Service Down")));
 
-        webTestClient.get().uri("/cart/items")
+        webTestClient.mutateWith(mockUser()).get().uri("/cart/items")
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk()
@@ -74,7 +77,7 @@ public class CartButtonVisibilityTest extends BaseWebFluxTest {
         when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
 
-        webTestClient.post().uri("/buy")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk()
@@ -95,7 +98,7 @@ public class CartButtonVisibilityTest extends BaseWebFluxTest {
         when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
 
-        webTestClient.post().uri("/buy")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk()

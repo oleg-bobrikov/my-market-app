@@ -8,6 +8,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
+
 public class ItemControllerTest extends BaseWebFluxTest {
 
     @Test
@@ -35,7 +37,7 @@ public class ItemControllerTest extends BaseWebFluxTest {
     public void updateCartItem_WhenActionPlus_RedirectsToItemsWithPreservedSort() {
         when(cartService.updateCartItem(any(), any(), any())).thenReturn(Mono.empty());
 
-        webTestClient.post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient.mutateWith(csrf()).post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", "1")
                         .queryParam("action", "PLUS")
                         .queryParam("sort", "PRICE")
@@ -50,7 +52,7 @@ public class ItemControllerTest extends BaseWebFluxTest {
     public void updateCartItem_WhenActionPlusByFormData_RedirectsToItemDetails() {
         when(cartService.updateCartItem(any(), any(), any())).thenReturn(Mono.empty());
 
-        webTestClient.post().uri("/items/1")
+        webTestClient.mutateWith(csrf()).post().uri("/items/1")
                 .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
                 .body(org.springframework.web.reactive.function.BodyInserters.fromFormData("action", "PLUS"))
                 .cookie("SESSION_ID", "00000000-0000-0000-0000-000000000001")

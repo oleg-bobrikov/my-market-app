@@ -11,6 +11,7 @@ import ru.yandex.practicum.shop.model.Order;
 import java.math.BigDecimal;
 import java.util.UUID;
 import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockUser;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
@@ -25,7 +26,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
 
         when(orderService.buy(sessionId)).thenReturn(Mono.just(order));
 
-        webTestClient.mutateWith(csrf()).post().uri("/buy")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection()
@@ -44,7 +45,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
         when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
 
-        webTestClient.mutateWith(csrf()).post().uri("/buy")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk()
@@ -63,7 +64,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
         when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
 
-        webTestClient.mutateWith(csrf()).post().uri("/buy")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk()
@@ -79,7 +80,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
         when(orderService.getOrderByIdAndSessionId(1L, sessionId)).thenReturn(Mono.just(order));
         when(orderService.getOrderItems(1L)).thenReturn(Flux.empty());
 
-        webTestClient.get().uri("/orders/1")
+        webTestClient.mutateWith(mockUser()).get().uri("/orders/1")
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk();
@@ -92,7 +93,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
         when(orderService.findBySessionId(sessionId)).thenReturn(Flux.just(order));
         when(orderService.getOrderItems(1L)).thenReturn(Flux.empty());
 
-        webTestClient.get().uri("/orders")
+        webTestClient.mutateWith(mockUser()).get().uri("/orders")
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk();

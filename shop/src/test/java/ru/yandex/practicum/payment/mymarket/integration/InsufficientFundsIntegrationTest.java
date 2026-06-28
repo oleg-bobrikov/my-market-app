@@ -17,6 +17,9 @@ import ru.yandex.practicum.shop.exception.InsufficientFundsException;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockUser;
+
 public class InsufficientFundsIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
@@ -37,7 +40,7 @@ public class InsufficientFundsIntegrationTest extends BaseIntegrationTest {
         when(paymentClient.pay(any(), any())).thenReturn(Mono.error(new InsufficientFundsException("Недостаточно средств на счете")));
 
         // 1. Добавляем товар в корзину
-        webTestClient.post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient.mutateWith(csrf()).post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", CartAction.PLUS.name())
                         .queryParam("search", "")
@@ -50,7 +53,7 @@ public class InsufficientFundsIntegrationTest extends BaseIntegrationTest {
                 .expectStatus().is3xxRedirection();
 
         // 2. Совершаем покупку и проверяем, что на странице корзины есть ошибка
-        webTestClient.post().uri("/buy")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().isOk()

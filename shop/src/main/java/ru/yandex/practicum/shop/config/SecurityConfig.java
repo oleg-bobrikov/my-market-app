@@ -64,11 +64,13 @@ public class SecurityConfig {
                                 "/logout/**",
                                 "/register/**",
                                 "/favicon.ico",
-                                "/",
+                                "/"
+                        ).permitAll()
+                        .pathMatchers(
                                 "/cart/**",
                                 "/buy/**",
                                 "/orders/**"
-                        ).permitAll()
+                        ).hasRole("USER")
                         .anyExchange().authenticated()
                 )
                 // Настраиваем форму логина

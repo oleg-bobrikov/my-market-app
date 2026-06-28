@@ -62,7 +62,6 @@ public class LoginController {
 
                     UserDetails user = User.withUsername(username.toLowerCase())
                             .password(passwordEncoder.encode(password))
-                            .roles("USER")
                             .build();
 
                     return userService.findByUsername(user.getUsername())

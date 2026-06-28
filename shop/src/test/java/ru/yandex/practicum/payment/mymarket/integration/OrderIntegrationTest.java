@@ -16,6 +16,9 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockUser;
+
 public class OrderIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
@@ -41,7 +44,7 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
         when(paymentClient.pay(any(), any())).thenReturn(Mono.empty());
 
         // 1. Добавляем товар в корзину
-        webTestClient.post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient.mutateWith(csrf()).post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", CartAction.PLUS.name())
                         .queryParam("search", "")
@@ -54,7 +57,7 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
                 .expectStatus().is3xxRedirection();
 
         // 2. Совершаем покупку
-        webTestClient.post().uri("/buy")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
                 .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection();
@@ -78,7 +81,7 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
         when(paymentClient.getBalance(any())).thenReturn(Mono.just(new BigDecimal("1000.00")));
         when(paymentClient.pay(any(), any())).thenReturn(Mono.empty());
 
-        webTestClient.post().uri("/buy")
+        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/items");
