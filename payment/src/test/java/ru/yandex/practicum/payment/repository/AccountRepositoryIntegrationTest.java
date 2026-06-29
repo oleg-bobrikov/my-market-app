@@ -8,7 +8,7 @@ import reactor.test.StepVerifier;
 import ru.yandex.practicum.payment.entity.AccountEntity;
 
 import java.math.BigDecimal;
-import java.util.UUID;
+
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -21,7 +21,7 @@ public class AccountRepositoryIntegrationTest {
 
     @Test
     void updateBalance_WhenFundsSufficient_UpdatesAmount() {
-        UUID accountId = UUID.randomUUID();
+        Long accountId = 100L;
         AccountEntity account = AccountEntity.builder()
                 .id(accountId)
                 .amount(BigDecimal.valueOf(100))
@@ -44,7 +44,7 @@ public class AccountRepositoryIntegrationTest {
 
     @Test
     void updateBalance_WhenFundsInsufficient_DoesNotUpdate() {
-        UUID accountId = UUID.randomUUID();
+        Long accountId = 200L;
         AccountEntity account = AccountEntity.builder()
                 .id(accountId)
                 .amount(BigDecimal.valueOf(20.0))

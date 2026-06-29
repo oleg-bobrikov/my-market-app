@@ -1,6 +1,8 @@
-package ru.yandex.practicum.payment.mymarket.controller;
+package ru.yandex.practicum.shop.controller;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.exception.InsufficientFundsException;
@@ -9,7 +11,6 @@ import ru.yandex.practicum.shop.model.Order;
 
 import java.math.BigDecimal;
 import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
-import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockUser;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
@@ -24,7 +25,10 @@ public class OrderControllerTest extends BaseWebFluxTest {
 
         when(orderService.buy(userId)).thenReturn(Mono.just(order));
 
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
+        webTestClient
+                .mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri("/buy")
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/orders/123");
@@ -42,7 +46,10 @@ public class OrderControllerTest extends BaseWebFluxTest {
         when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
 
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
+        webTestClient
+                .mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri("/buy")
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class).value(body ->
@@ -60,7 +67,10 @@ public class OrderControllerTest extends BaseWebFluxTest {
         when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
 
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
+        webTestClient
+                .mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri("/buy")
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class).value(body ->
@@ -75,7 +85,9 @@ public class OrderControllerTest extends BaseWebFluxTest {
         when(orderService.getOrderByIdAndSessionId(1L, userId)).thenReturn(Mono.just(order));
         when(orderService.getOrderItems(1L)).thenReturn(Flux.empty());
 
-        webTestClient.mutateWith(mockUser()).get().uri("/orders/1")
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .get().uri("/orders/1")
                 .exchange()
                 .expectStatus().isOk();
     }
@@ -87,7 +99,9 @@ public class OrderControllerTest extends BaseWebFluxTest {
         when(orderService.findByUserId(userId)).thenReturn(Flux.just(order));
         when(orderService.getOrderItems(1L)).thenReturn(Flux.empty());
 
-        webTestClient.mutateWith(mockUser()).get().uri("/orders")
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .get().uri("/orders")
                 .exchange()
                 .expectStatus().isOk();
     }

@@ -1,13 +1,10 @@
-package ru.yandex.practicum.payment.mymarket.service;
+package ru.yandex.practicum.shop.service;
 
-import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.cache.CacheManager;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import ru.yandex.practicum.shop.model.CartAction;
@@ -17,7 +14,6 @@ import ru.yandex.practicum.shop.service.CartService;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -28,9 +24,6 @@ class CartServiceTest {
     @Mock
     private CartRepository cartRepository;
 
-    @Mock
-    private CacheManager cacheManager;
-
     private CartService cartService;
 
     @BeforeEach
@@ -40,13 +33,13 @@ class CartServiceTest {
 
     @Test
     void updateCartItem_WhenPlusForNewItem_CreatesItem() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        long userId = 1L;
         Long itemId = 1L;
 
-        when(cartRepository.findBySessionIdAndItemId(sessionId, itemId)).thenReturn(Mono.empty());
+        when(cartRepository.findByUserIdAndItemId(userId, itemId)).thenReturn(Mono.empty());
         when(cartRepository.save(any())).thenReturn(Mono.just(new ru.yandex.practicum.shop.entity.CartItemEntity()));
 
-        cartService.updateCartItem(sessionId, itemId, CartAction.PLUS)
+        cartService.updateCartItem(userId, itemId, CartAction.PLUS)
                 .as(StepVerifier::create)
                 .verifyComplete();
 
@@ -55,16 +48,16 @@ class CartServiceTest {
 
     @Test
     void updateCartItem_WhenPlusForExistingItem_IncrementsCount() {
-        UUID sessionId = UUID.randomUUID();
+        long userId = 1L;
         Long itemId = 1L;
 
         ru.yandex.practicum.shop.entity.CartItemEntity entity = ru.yandex.practicum.shop.entity.CartItemEntity.builder()
-                .sessionId(sessionId).itemId(itemId).count(1).build();
+                .userId(userId).itemId(itemId).count(1).build();
 
-        when(cartRepository.findBySessionIdAndItemId(sessionId, itemId)).thenReturn(Mono.just(entity));
+        when(cartRepository.findByUserIdAndItemId(userId, itemId)).thenReturn(Mono.just(entity));
         when(cartRepository.save(any())).thenReturn(Mono.just(entity));
 
-        cartService.updateCartItem(sessionId, itemId, CartAction.PLUS)
+        cartService.updateCartItem(userId, itemId, CartAction.PLUS)
                 .as(StepVerifier::create)
                 .verifyComplete();
 
@@ -73,16 +66,16 @@ class CartServiceTest {
 
     @Test
     void updateCartItem_WhenMinusAndCountMoreThanOne_DecrementsCount() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        long userId = 1L;
         Long itemId = 1L;
 
         ru.yandex.practicum.shop.entity.CartItemEntity entity = ru.yandex.practicum.shop.entity.CartItemEntity.builder()
-                .sessionId(sessionId).itemId(itemId).count(2).build();
+                .userId(userId).itemId(itemId).count(2).build();
 
-        when(cartRepository.findBySessionIdAndItemId(sessionId, itemId)).thenReturn(Mono.just(entity));
+        when(cartRepository.findByUserIdAndItemId(userId, itemId)).thenReturn(Mono.just(entity));
         when(cartRepository.save(any())).thenReturn(Mono.just(entity));
 
-        cartService.updateCartItem(sessionId, itemId, CartAction.MINUS)
+        cartService.updateCartItem(userId, itemId, CartAction.MINUS)
                 .as(StepVerifier::create)
                 .verifyComplete();
 
@@ -91,16 +84,16 @@ class CartServiceTest {
 
     @Test
     void updateCartItem_WhenMinusAndCountEqualsOne_DeletesItem() {
-        UUID sessionId = UUID.randomUUID();
+        long userId = 1L;
         Long itemId = 1L;
 
         ru.yandex.practicum.shop.entity.CartItemEntity entity = ru.yandex.practicum.shop.entity.CartItemEntity.builder()
-                .sessionId(sessionId).itemId(itemId).count(1).build();
+                .userId(userId).itemId(itemId).count(1).build();
 
-        when(cartRepository.findBySessionIdAndItemId(sessionId, itemId)).thenReturn(Mono.just(entity));
+        when(cartRepository.findByUserIdAndItemId(userId, itemId)).thenReturn(Mono.just(entity));
         when(cartRepository.delete(any())).thenReturn(Mono.empty());
 
-        cartService.updateCartItem(sessionId, itemId, CartAction.MINUS)
+        cartService.updateCartItem(userId, itemId, CartAction.MINUS)
                 .as(StepVerifier::create)
                 .verifyComplete();
 
@@ -109,16 +102,16 @@ class CartServiceTest {
 
     @Test
     void updateCartItem_WhenActionDelete_DeletesItem() {
-        UUID sessionId = UUID.randomUUID();
+        long userId = 1L;
         Long itemId = 1L;
 
         ru.yandex.practicum.shop.entity.CartItemEntity entity = ru.yandex.practicum.shop.entity.CartItemEntity.builder()
-                .sessionId(sessionId).itemId(itemId).count(5).build();
+                .userId(userId).itemId(itemId).count(5).build();
 
-        when(cartRepository.findBySessionIdAndItemId(sessionId, itemId)).thenReturn(Mono.just(entity));
+        when(cartRepository.findByUserIdAndItemId(userId, itemId)).thenReturn(Mono.just(entity));
         when(cartRepository.delete(any())).thenReturn(Mono.empty());
 
-        cartService.updateCartItem(sessionId, itemId, CartAction.DELETE)
+        cartService.updateCartItem(userId, itemId, CartAction.DELETE)
                 .as(StepVerifier::create)
                 .verifyComplete();
 

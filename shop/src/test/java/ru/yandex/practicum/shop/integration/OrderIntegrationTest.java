@@ -1,8 +1,8 @@
-package ru.yandex.practicum.payment.mymarket.integration;
+package ru.yandex.practicum.shop.integration;
 
-import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import reactor.test.StepVerifier;
 import ru.yandex.practicum.shop.model.CartAction;
 import ru.yandex.practicum.shop.repository.OrderRepository;
@@ -11,13 +11,11 @@ import ru.yandex.practicum.shop.client.PaymentClient;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
-import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockUser;
 
 public class OrderIntegrationTest extends BaseIntegrationTest {
 
@@ -35,16 +33,19 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void buy_WhenOrderCreated_RedirectsToOrderPage() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        long userId = 1L;
 
         ru.yandex.practicum.shop.entity.ItemEntity itemEntity = itemRepository.findAll().blockFirst();
         long itemId = itemEntity != null ? itemEntity.getId() : 1L;
 
         when(paymentClient.getBalance(any())).thenReturn(Mono.just(new BigDecimal("1000.00")));
-        when(paymentClient.pay(any(), any())).thenReturn(Mono.empty());
+        when(paymentClient.pay(any())).thenReturn(Mono.empty());
 
         // 1. Добавляем товар в корзину
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient
+                .mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", CartAction.PLUS.name())
                         .queryParam("search", "")
@@ -52,38 +53,42 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
                         .queryParam("pageSize", "5")
                         .queryParam("pageNumber", "1")
                         .build())
-                .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection();
 
         // 2. Совершаем покупку
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
-                .cookie("SESSION_ID", sessionId.toString())
+        webTestClient
+                .mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri("/buy")
                 .exchange()
-                .expectStatus().is3xxRedirection();
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueMatches("Location", "/orders/\\d+");
 
         // 3. Проверяем, что заказ создался
-        var orders = orderRepository.findBySessionId(sessionId).collectList().block();
+        var orders = orderRepository.findByUserId(userId).collectList().block();
         assert orders != null && !orders.isEmpty();
 
-        orderRepository.findBySessionId(sessionId)
+        orderRepository.findByUserId(userId)
                 .as(StepVerifier::create)
-                .expectNextMatches(order -> order.getSessionId().equals(sessionId))
+                .expectNextMatches(order -> order.getUserId().equals(userId))
                 .verifyComplete();
 
         // 4. Проверяем, что корзина очистилась
-        var finalCounts = cartService.getCartCounts(sessionId).block();
+        var finalCounts = cartService.getCartCounts(userId).block();
         assert finalCounts == null || finalCounts.isEmpty();
     }
 
     @Test
-    void buy_WhenNoSession_RedirectsToItems() {
+    void buy_WhenIsAnonymous_RedirectsToLoginPage() {
         when(paymentClient.getBalance(any())).thenReturn(Mono.just(new BigDecimal("1000.00")));
-        when(paymentClient.pay(any(), any())).thenReturn(Mono.empty());
+        when(paymentClient.pay(any())).thenReturn(Mono.empty());
 
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
+        webTestClient
+                .mutateWith(csrf())
+                .post().uri("/buy")
                 .exchange()
                 .expectStatus().is3xxRedirection()
-                .expectHeader().valueEquals("Location", "/items");
+                .expectHeader().valueEquals("Location", "/login");
     }
 }

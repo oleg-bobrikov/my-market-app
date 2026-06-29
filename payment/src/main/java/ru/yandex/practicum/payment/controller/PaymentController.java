@@ -3,6 +3,7 @@ package ru.yandex.practicum.payment.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.payment.api.BalanceApi;
 import ru.yandex.practicum.payment.api.DefaultApi;
@@ -21,23 +22,21 @@ public class PaymentController implements BalanceApi, DefaultApi {
     @Override
     @PostMapping({"", "/"})
     public Mono<ResponseEntity<PaymentResponse>> payOrder(
-            @RequestBody Mono<PaymentRequest> paymentRequest
+            @RequestBody Mono<PaymentRequest> paymentRequest,
+            ServerWebExchange exchange
     ) {
         return paymentRequest
-                .flatMap(request -> paymentService.payOrder(paymentRequest))
+                .flatMap(paymentService::payOrder)
                 .map(ResponseEntity::ok);
     }
 
     @Override
     @GetMapping("/balance/{accountId}")
     public Mono<ResponseEntity<Balance>> getBalance(
-            @PathVariable Long accountId
+            @PathVariable Long accountId,
+            ServerWebExchange exchange
     ) {
-        try {
-            return paymentService.getBalance(accountId)
-                    .map(ResponseEntity::ok);
-        } catch (Exception e) {
-            return Mono.error(e);
-        }
+        return paymentService.getBalance(accountId)
+                .map(ResponseEntity::ok);
     }
 }

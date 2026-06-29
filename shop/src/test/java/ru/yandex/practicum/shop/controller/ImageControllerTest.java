@@ -1,4 +1,4 @@
-package ru.yandex.practicum.payment.mymarket.controller;
+package ru.yandex.practicum.shop.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -24,7 +24,8 @@ public class ImageControllerTest extends BaseWebFluxTest {
     public void getImage_WhenImageMissing_ReturnsNotFound() {
         when(imageService.getImage("non_existent.jpg")).thenReturn(Mono.empty());
 
-        webTestClient.get().uri("/api/images/non_existent.jpg")
+        webTestClient
+                .get().uri("/api/images/non_existent.jpg")
                 .exchange()
                 .expectStatus().isNotFound();
     }

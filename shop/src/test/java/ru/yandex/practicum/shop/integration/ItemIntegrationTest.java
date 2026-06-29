@@ -1,4 +1,4 @@
-package ru.yandex.practicum.payment.mymarket.integration;
+package ru.yandex.practicum.shop.integration;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;

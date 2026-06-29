@@ -63,29 +63,21 @@ public class ItemController extends BaseController {
         };
 
         Pageable pageable = PageRequest.of(pageNumber - 1, pageSize, sortOrder);
-        Long userId = user.getUserId();
-        if (userId == null) {
-            log.error("User is not authenticated");
-            return Mono.just(Rendering.redirectTo("/items").build());
-        }
+        // Anonymous users may browse the catalog (the "/" path is permitAll): there is
+        // no cart association, so userId stays null and cart counts resolve to empty.
+        Long userId = user != null ? user.getUserId() : null;
 
         return itemService.getItems(search, userId, pageable)
                 .map(itemMapper::toDto)
                 .collectList()
                 .flatMap(content -> {
-                    int chunkSize = 5;
+                    int chunkSize = pageSize;
                     List<List<ItemDto>> items = IntStream
                             .range(0, (content.size() + chunkSize - 1) / chunkSize)
                             .mapToObj(i -> {
                                 int start = i * chunkSize;
                                 int end = Math.min(start + chunkSize, content.size());
-                                List<ItemDto> chunk = new ArrayList<>(content.subList(start, end));
-
-                                while (chunk.size() < chunkSize) {
-                                    chunk.add(new ItemDto(-1L, "", "", "", BigDecimal.ZERO, 0));
-                                }
-
-                                return chunk;
+                                return (List<ItemDto>) new ArrayList<>(content.subList(start, end));
                             })
                             .toList();
 

@@ -1,7 +1,8 @@
-package ru.yandex.practicum.payment.mymarket.controller;
+package ru.yandex.practicum.shop.controller;
 
-import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.dto.ItemDto;
@@ -9,13 +10,11 @@ import ru.yandex.practicum.shop.model.Item;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
-import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockUser;
 
 public class CartButtonVisibilityTest extends BaseWebFluxTest {
 
@@ -32,7 +31,9 @@ public class CartButtonVisibilityTest extends BaseWebFluxTest {
         // Баланс 50, нужно 100
         when(paymentClient.getBalance(userId)).thenReturn(Mono.just(BigDecimal.valueOf(50)));
 
-        webTestClient.mutateWith(mockUser()).get().uri("/cart/items")
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .get().uri("/cart/items")
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -55,7 +56,9 @@ public class CartButtonVisibilityTest extends BaseWebFluxTest {
         // Сервис платежей возвращает ошибку
         when(paymentClient.getBalance(userId)).thenReturn(Mono.error(new RuntimeException("Service Down")));
 
-        webTestClient.mutateWith(mockUser()).get().uri("/cart/items")
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .get().uri("/cart/items")
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -75,7 +78,9 @@ public class CartButtonVisibilityTest extends BaseWebFluxTest {
         when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
 
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
+        webTestClient.mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri("/buy")
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -95,7 +100,9 @@ public class CartButtonVisibilityTest extends BaseWebFluxTest {
         when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
 
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
+        webTestClient.mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri("/buy")
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)

@@ -55,10 +55,10 @@ public class CartService {
                 .then();
     }
 
-    @Cacheable(value = "carts", key = "#userId")
+    @Cacheable(value = "carts", key = "#userId", condition = "#userId != null")
     public Mono<Map<Long, Integer>> getCartCounts(Long userId) {
         if (userId == null) {
-            return Mono.empty();
+            return Mono.just(Map.of());
         }
         return cartRepository.findByUserId(userId)
                 .collect(Collectors.toMap(

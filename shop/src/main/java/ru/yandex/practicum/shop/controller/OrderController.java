@@ -7,7 +7,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
-import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.exception.InsufficientFundsException;
@@ -32,7 +31,6 @@ public class OrderController {
 
     @PostMapping("/buy")
     public Mono<Rendering> buy(
-            ServerWebExchange exchange,
             @AuthenticationPrincipal CustomUserDetails user) {
         Long userId = user.getUserId();
         return orderService.buy(userId)
@@ -66,8 +64,7 @@ public class OrderController {
     public Mono<Rendering> getOrder(
             @PathVariable Long id,
             @RequestParam(defaultValue = "false") boolean newOrder,
-            @AuthenticationPrincipal CustomUserDetails user,
-            ServerWebExchange exchange
+            @AuthenticationPrincipal CustomUserDetails user
     ) {
 
         return orderService.getOrderByIdAndSessionId(id, user.getUserId())
@@ -90,8 +87,7 @@ public class OrderController {
 
     @GetMapping("/orders")
     public Mono<Rendering> findBySessionId(
-            @AuthenticationPrincipal CustomUserDetails user,
-            ServerWebExchange exchange
+            @AuthenticationPrincipal CustomUserDetails user
     ) {
         return orderService.findByUserId(user.getUserId())
                 .flatMap(order ->

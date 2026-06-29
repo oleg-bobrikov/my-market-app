@@ -63,8 +63,9 @@ public class OrderService {
                         return Mono.error(new InsufficientFundsException("Недостаточно средств на счете"));
                     }
 
-                    return paymentClient.pay(new PaymentRequest(userId))
-                            .then(createOrder(userId));
+                    return createOrder(userId)
+                            .flatMap(order -> paymentClient.pay(new PaymentRequest(userId, order.getId(), order.getTotal()))
+                                    .thenReturn(order));
                 })
                 .onErrorMap(e -> {
                     if (e instanceof InsufficientFundsException || e instanceof IllegalStateException) {

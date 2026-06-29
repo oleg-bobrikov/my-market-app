@@ -12,7 +12,6 @@ import ru.yandex.practicum.payment.model.PaymentResponse;
 import ru.yandex.practicum.payment.model.PaymentStatus;
 import ru.yandex.practicum.payment.service.PaymentService;
 
-import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -29,6 +28,7 @@ class PaymentControllerTest {
     @Test
     void pay_WhenSuccessful_ReturnsOk() {
         PaymentRequest request = new PaymentRequest();
+        request.setClientId(1L);
         request.setOrderId("order-1");
         request.setAmount("100.00");
         
@@ -54,8 +54,8 @@ class PaymentControllerTest {
 
     @Test
     void pay_WhenInsufficientFunds_ReturnsBadRequest() {
-        UUID sessionId = UUID.randomUUID();
         PaymentRequest request = new PaymentRequest();
+        request.setClientId(1L);
         request.setOrderId("order-1");
         request.setAmount("1000.00");
 
@@ -64,7 +64,6 @@ class PaymentControllerTest {
 
         webTestClient.post()
                 .uri("/payments/api")
-                .header("session_id", sessionId.toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(request)
                 .exchange()
@@ -73,20 +72,22 @@ class PaymentControllerTest {
                 .jsonPath("$.status").isEqualTo("ERROR")
                 .jsonPath("$.message").isEqualTo("Недостаточно средств на счете");
     }
-    @Test
-    void pay_WhenNoSessionId_ReturnsBadRequest() {
-        PaymentRequest request = new PaymentRequest();
-        request.setOrderId("order-1");
-        request.setAmount("100.00");
 
-        webTestClient.post()
-                .uri("/payments/api")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(request)
+    @Test
+    void getBalance_ReturnsOk() {
+        ru.yandex.practicum.payment.model.Balance balance = new ru.yandex.practicum.payment.model.Balance();
+        balance.setClientId(1L);
+        balance.setBalance("1000.00");
+
+        when(paymentService.getBalance(1L))
+                .thenReturn(Mono.just(balance));
+
+        webTestClient.get()
+                .uri("/payments/api/balance/1")
                 .exchange()
-                .expectStatus().isBadRequest()
+                .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.status").isEqualTo("ERROR")
-                .jsonPath("$.message").isEqualTo("Missing session_id header");
+                .jsonPath("$.clientId").isEqualTo(1)
+                .jsonPath("$.balance").isEqualTo("1000.00");
     }
 }

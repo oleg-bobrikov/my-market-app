@@ -1,4 +1,4 @@
-package ru.yandex.practicum.payment.mymarket.configuration;
+package ru.yandex.practicum.shop.configuration;
 
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;

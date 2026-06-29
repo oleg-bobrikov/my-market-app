@@ -24,8 +24,7 @@ public class PaymentClient {
 
     public Mono<BigDecimal> getBalance(Long userId) {
         DefaultApi localApi = new DefaultApi(new ApiClient().setBasePath(paymentApi.getApiClient().getBasePath()));
-        localApi.getApiClient().setApiKey(userId.toString());
-        return localApi.getBalance()
+        return localApi.getBalance(userId)
                 .map(balance -> balance.getBalance() == null
                         ? BigDecimal.ZERO
                         : new BigDecimal(balance.getBalance()))
@@ -40,9 +39,9 @@ public class PaymentClient {
 
     public Mono<Void> pay(ru.yandex.practicum.shop.client.model.PaymentRequest paymentRequest) {
         DefaultApi localApi = new DefaultApi(new ApiClient().setBasePath(paymentApi.getApiClient().getBasePath()));
-        localApi.getApiClient().setApiKey(paymentRequest.userId().toString());
 
         PaymentRequest apiRequest = new PaymentRequest();
+        apiRequest.setClientId(paymentRequest.userId());
         apiRequest.setOrderId(paymentRequest.orderId().toString());
         apiRequest.setAmount(paymentRequest.amount().toString());
 

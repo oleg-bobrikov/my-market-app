@@ -101,7 +101,7 @@ public class CartController extends BaseController {
             Long userId = user.getUserId();
             if (userId == null) {
                 log.error("User is not authenticated");
-                return Mono.just(Rendering.redirectTo("/items").build());
+                return Mono.just("redirect:/items");
             }
 
             return cartService.updateCartItem(userId, id, action)

@@ -11,7 +11,7 @@ import java.util.UUID;
 @Builder
 public class CartItem {
     private Long id;
-    private UUID sessionId;
+    private Long userId;
     private Long itemId;
     private Integer count;
 }

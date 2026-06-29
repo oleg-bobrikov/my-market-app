@@ -1,27 +1,40 @@
-package ru.yandex.practicum.payment.mymarket.integration;
+package ru.yandex.practicum.shop.integration;
 
-import com.github.f4b6a3.uuid.UuidCreator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import reactor.test.StepVerifier;
+import ru.yandex.practicum.shop.repository.CartRepository;
 import ru.yandex.practicum.shop.service.CartService;
 
 import java.util.Map;
-import java.util.UUID;
 
 import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
-import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockUser;
 
 public class CartIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private CartService cartService;
 
+    @Autowired
+    private CartRepository cartRepository;
+
+    // The integration context (and its in-memory DB) is shared across test methods, and they all
+    // act as userId=1. Clear that user's cart before each test so counts don't leak between methods.
+    @BeforeEach
+    void clearCart() {
+        cartRepository.deleteByUserId(1L).block();
+    }
+
     @Test
     void updateCartItem_WhenActionPlus_IncrementsCount() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        Long userId = 1L;
         Long itemId = 1L;
 
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient
+                .mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", itemId.toString())
                         .queryParam("action", "PLUS")
                         .queryParam("search", "test")
@@ -29,17 +42,19 @@ public class CartIntegrationTest extends BaseIntegrationTest {
                         .queryParam("pageSize", "10")
                         .queryParam("pageNumber", "2")
                         .build())
-                .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection();
 
-        cartService.getCartCounts(sessionId)
+        cartService.getCartCounts(userId)
                 .as(StepVerifier::create)
                 .expectNextMatches(counts -> counts.getOrDefault(itemId, 0) == 1)
                 .verifyComplete();
 
         // Increase count
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient
+                .mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", itemId.toString())
                         .queryParam("action", "PLUS")
                         .queryParam("search", "")
@@ -47,11 +62,10 @@ public class CartIntegrationTest extends BaseIntegrationTest {
                         .queryParam("pageSize", "5")
                         .queryParam("pageNumber", "1")
                         .build())
-                .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection();
 
-        cartService.getCartCounts(sessionId)
+        cartService.getCartCounts(userId)
                 .as(StepVerifier::create)
                 .expectNextMatches(counts -> {
                     Object count = counts.get(itemId);
@@ -64,11 +78,14 @@ public class CartIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void updateCartItem_WhenActionMinus_DecrementsCountOrDeletesItem() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        Long userId = 1L;
         long itemId = 1L;
 
         // Add item first
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient
+                .mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", "PLUS")
                         .queryParam("search", "")
@@ -76,12 +93,14 @@ public class CartIntegrationTest extends BaseIntegrationTest {
                         .queryParam("pageSize", "5")
                         .queryParam("pageNumber", "1")
                         .build())
-                .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection();
 
         // Decrease count
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient
+                .mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", "MINUS")
                         .queryParam("search", "")
@@ -89,11 +108,10 @@ public class CartIntegrationTest extends BaseIntegrationTest {
                         .queryParam("pageSize", "5")
                         .queryParam("pageNumber", "1")
                         .build())
-                .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection();
 
-        cartService.getCartCounts(sessionId)
+        cartService.getCartCounts(userId)
                 .as(StepVerifier::create)
                 .expectNextMatches(Map::isEmpty)
                 .verifyComplete();
@@ -101,12 +119,14 @@ public class CartIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getItem_WhenItemInCart_ReturnsItemWithCorrectCount() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         long itemId = 1L;
 
         // Добавляем товар в корзину (2 штуки)
         for (int i = 0; i < 2; i++) {
-            webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
+            webTestClient
+                    .mutateWith(csrf())
+                    .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                    .post().uri(uriBuilder -> uriBuilder.path("/items")
                             .queryParam("id", Long.toString(itemId))
                             .queryParam("action", "PLUS")
                             .queryParam("search", "")
@@ -114,24 +134,26 @@ public class CartIntegrationTest extends BaseIntegrationTest {
                             .queryParam("pageSize", "5")
                             .queryParam("pageNumber", "1")
                             .build())
-                    .cookie("SESSION_ID", sessionId.toString())
                     .exchange()
                     .expectStatus().is3xxRedirection();
         }
 
         // Проверяем, что getItem возвращает правильный count
-        webTestClient.get().uri("/items/" + itemId)
-                .cookie("SESSION_ID", sessionId.toString())
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .get().uri("/items/" + itemId)
                 .exchange()
                 .expectStatus().isOk();
     }
 
     @Test
     void getCartItems_WhenItemsInCart_ReturnsCartView() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         long itemId = 1L;
 
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient
+                .mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", "PLUS")
                         .queryParam("search", "")
@@ -139,22 +161,25 @@ public class CartIntegrationTest extends BaseIntegrationTest {
                         .queryParam("pageSize", "5")
                         .queryParam("pageNumber", "1")
                         .build())
-                .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection();
 
-        webTestClient.mutateWith(mockUser()).get().uri("/cart/items")
-                .cookie("SESSION_ID", sessionId.toString())
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .get().uri("/cart/items")
                 .exchange()
                 .expectStatus().isOk();
     }
 
     @Test
     void updateCartItemInCart_WhenActionPlus_IncrementsCountInCart() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
         long itemId = 1L;
+        long userId = 1L;
 
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient
+                .mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", "PLUS")
                         .queryParam("search", "")
@@ -162,23 +187,24 @@ public class CartIntegrationTest extends BaseIntegrationTest {
                         .queryParam("pageSize", "5")
                         .queryParam("pageNumber", "1")
                         .build())
-                .cookie("SESSION_ID", sessionId.toString())
                 .exchange();
 
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/cart/items")
+        webTestClient
+                .mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri(uriBuilder -> uriBuilder.path("/cart/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", "PLUS")
                         .build())
-                .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection();
 
-        cartService.getCartCounts(sessionId)
+        cartService.getCartCounts(userId)
                 .as(StepVerifier::create)
                 .expectNextMatches(counts -> {
-                    // Используем Number для поддержки Integer/Long ключей из кэша
+                    // Используем Number для поддержки Integer/Long ключей из кеша
                     // Хотя нормализация в ItemService должна это исправлять,
-                    // cartService.getCartCounts(sessionId) возвращает данные напрямую из кэша.
+                    // cartService.getCartCounts(sessionId) возвращает данные напрямую из кеша.
                     Object count = counts.get(itemId);
                     if (count == null) count = counts.get(Math.toIntExact(itemId));
                     if (count == null) count = counts.get(String.valueOf(itemId));

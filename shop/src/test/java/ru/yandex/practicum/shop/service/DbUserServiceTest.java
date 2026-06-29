@@ -1,4 +1,4 @@
-package ru.yandex.practicum.payment.mymarket.service;
+package ru.yandex.practicum.shop.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +39,7 @@ class DbUserServiceTest {
     }
 
     @Test
-    void register_WhenValidUser_SavesUserWithRolesString() {
+    void register_WhenValidUser_SavesUserWithAuthoritiesString() {
         UserDetails userDetails = User.withUsername("testadmin")
                 .password("password")
                 .roles("USER", "ADMIN")
@@ -75,7 +75,7 @@ class DbUserServiceTest {
     }
 
     @Test
-    void findByUsername_WhenUserExists_ReturnsUserDetailsWithParsedRoles() {
+    void findByUsername_WhenUserExists_ReturnsUserDetailsWithParsedAuthorities() {
         UserEntity entity = UserEntity.builder()
                 .id(2L)
                 .login("testuser")

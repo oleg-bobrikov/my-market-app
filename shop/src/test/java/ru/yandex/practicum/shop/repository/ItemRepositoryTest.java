@@ -1,11 +1,10 @@
-package ru.yandex.practicum.payment.mymarket.repository;
+package ru.yandex.practicum.shop.repository;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import reactor.test.StepVerifier;
 import ru.yandex.practicum.shop.entity.ItemEntity;
-import ru.yandex.practicum.shop.repository.ItemRepository;
 
 import java.math.BigDecimal;
 

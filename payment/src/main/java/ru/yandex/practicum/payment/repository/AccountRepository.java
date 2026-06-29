@@ -11,6 +11,6 @@ import java.math.BigDecimal;
 
 public interface AccountRepository extends ReactiveCrudRepository<AccountEntity, Long> {
     @Modifying
-    @Query("UPDATE accounts SET amount = amount - :amount WHERE account_id = :id AND amount >= :amount")
-    Mono<Integer> updateBalance(Long accountId, BigDecimal amount);
+    @Query("UPDATE accounts SET amount = amount - :amount WHERE id = :id AND amount >= :amount")
+    Mono<Integer> updateBalance(Long id, BigDecimal amount);
 }

@@ -7,6 +7,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import ru.yandex.practicum.payment.entity.AccountEntity;
@@ -18,12 +20,12 @@ import ru.yandex.practicum.payment.model.PaymentStatus;
 import ru.yandex.practicum.payment.repository.AccountRepository;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class PaymentServiceTest {
 
     @Mock
@@ -43,6 +45,7 @@ class PaymentServiceTest {
     void payOrder_WhenAccountDoesNotExist_CreatesAccountWithDefaultBalance() {
         BigDecimal amountToPay = new BigDecimal("1000");
         PaymentRequest paymentRequest = new PaymentRequest();
+        paymentRequest.setClientId(accountId);
         paymentRequest.setOrderId("order-1");
         paymentRequest.setAmount(amountToPay.toString());
         BigDecimal defaultBalance = new BigDecimal(30_000);
@@ -64,8 +67,8 @@ class PaymentServiceTest {
         StepVerifier.create(result)
                 .expectNextMatches(response ->
                         PaymentStatus.SUCCESS.equals(response.getStatus()) &&
-                        response.getRemainingBalance() != null &&
-                        new BigDecimal(response.getRemainingBalance()).compareTo(remaining) == 0
+                                response.getRemainingBalance() != null &&
+                                new BigDecimal(response.getRemainingBalance()).compareTo(remaining) == 0
                 )
                 .verifyComplete();
     }
@@ -80,9 +83,9 @@ class PaymentServiceTest {
 
         StepVerifier.create(result)
                 .expectNextMatches(balance ->
-                        accountId ==balance.getClientId() &&
-                        balance.getBalance() != null &&
-                        new BigDecimal(balance.getBalance()).compareTo(amount) == 0)
+                        accountId == balance.getClientId() &&
+                                balance.getBalance() != null &&
+                                new BigDecimal(balance.getBalance()).compareTo(amount) == 0)
                 .verifyComplete();
     }
 
@@ -90,13 +93,14 @@ class PaymentServiceTest {
     void payOrder_WhenCalledConcurrently_CreatesAccountOnlyOnce() {
         BigDecimal amountToPay = new BigDecimal("1000");
         PaymentRequest paymentRequest = new PaymentRequest();
+        paymentRequest.setClientId(accountId);
         paymentRequest.setOrderId("order-1");
         paymentRequest.setAmount(amountToPay.toString());
 
         // Имитируем задержку при первом сохранении
         // При первом вызове findById возвращаем empty, чтобы сработал switchIfEmpty
         when(accountRepository.findById(accountId))
-                .thenReturn(Mono.empty()); 
+                .thenReturn(Mono.empty());
 
         when(accountRepository.save(any(AccountEntity.class))).thenAnswer(invocation -> {
             AccountEntity savedAccount = invocation.getArgument(0);
@@ -114,7 +118,7 @@ class PaymentServiceTest {
         StepVerifier.create(Mono.zip(call1, call2))
                 .expectNextMatches(tuple ->
                         tuple.getT1().getStatus() == PaymentStatus.SUCCESS &&
-                        tuple.getT2().getStatus() == PaymentStatus.SUCCESS
+                                tuple.getT2().getStatus() == PaymentStatus.SUCCESS
                 )
                 .verifyComplete();
 
@@ -126,6 +130,7 @@ class PaymentServiceTest {
     void payOrder_WhenInsufficientFunds_ThrowsExceptionAndLogs() {
         BigDecimal amountToPay = new BigDecimal("40000");
         PaymentRequest paymentRequest = new PaymentRequest();
+        paymentRequest.setClientId(accountId);
         paymentRequest.setOrderId("order-fail");
         paymentRequest.setAmount(amountToPay.toString());
 
@@ -175,7 +180,7 @@ class PaymentServiceTest {
         // Перенастраиваем моки для последовательных платежей
         reset(accountRepository);
         when(accountRepository.findById(accountId)).thenAnswer(inv ->
-            Mono.just(new AccountEntity(accountId, currentBalance.get(), false))
+                Mono.just(new AccountEntity(accountId, currentBalance.get(), false))
         );
 
         when(accountRepository.updateBalance(eq(accountId), any(BigDecimal.class))).thenAnswer(invocation -> {
@@ -189,6 +194,7 @@ class PaymentServiceTest {
 
         // Первый платеж
         PaymentRequest req1 = new PaymentRequest();
+        req1.setClientId(accountId);
         req1.setOrderId("order1");
         req1.setAmount(order1.toString());
         paymentService.payOrder(req1)
@@ -202,6 +208,7 @@ class PaymentServiceTest {
 
         // Второй платеж
         PaymentRequest req2 = new PaymentRequest();
+        req2.setClientId(accountId);
         req2.setOrderId("order2");
         req2.setAmount(order2.toString());
         paymentService.payOrder(req2)
@@ -215,6 +222,7 @@ class PaymentServiceTest {
 
         // Третий платеж - должен зафейлиться
         PaymentRequest req3 = new PaymentRequest();
+        req3.setClientId(accountId);
         req3.setOrderId("order3");
         req3.setAmount(order3.toString());
         paymentService.payOrder(req3)

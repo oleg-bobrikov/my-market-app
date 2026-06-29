@@ -1,8 +1,9 @@
-package ru.yandex.practicum.payment.mymarket.integration;
+package ru.yandex.practicum.shop.integration;
 
 import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.client.PaymentClient;
@@ -30,17 +31,18 @@ public class InsufficientFundsIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void buy_WhenInsufficientFunds_ShowsErrorMessage() {
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
-        
         var itemEntity = itemRepository.findAll().blockFirst();
         long itemId = itemEntity != null ? itemEntity.getId() : 1L;
 
         when(paymentClient.getBalance(any())).thenReturn(Mono.just(new BigDecimal("1000.00")));
         // Имитируем выброс исключения о нехватке средств, которое теперь должен кидать PaymentClient
-        when(paymentClient.pay(any(), any())).thenReturn(Mono.error(new InsufficientFundsException("Недостаточно средств на счете")));
+        when(paymentClient.pay(any())).thenReturn(Mono.error(new InsufficientFundsException("Недостаточно средств на счете")));
 
         // 1. Добавляем товар в корзину
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/items")
+        webTestClient
+                .mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri(uriBuilder -> uriBuilder.path("/items")
                         .queryParam("id", Long.toString(itemId))
                         .queryParam("action", CartAction.PLUS.name())
                         .queryParam("search", "")
@@ -48,13 +50,14 @@ public class InsufficientFundsIntegrationTest extends BaseIntegrationTest {
                         .queryParam("pageSize", "5")
                         .queryParam("pageNumber", "1")
                         .build())
-                .cookie("SESSION_ID", sessionId.toString())
                 .exchange()
                 .expectStatus().is3xxRedirection();
 
         // 2. Совершаем покупку и проверяем, что на странице корзины есть ошибка
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/buy")
-                .cookie("SESSION_ID", sessionId.toString())
+        webTestClient
+                .mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri("/buy")
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)

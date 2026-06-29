@@ -57,16 +57,15 @@ public class SecurityConfig {
             WebSessionServerCsrfTokenRepository csrfTokenRepository) {
         http
                 .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository))
-                // Явно разрешаем доступ к /login и / для всех
                 .authorizeExchange(exchanges -> exchanges
+                        .pathMatchers("/api/images/**").permitAll()
                         .pathMatchers(
-                                "/items/**",
-                                "/api/images/**",
+                                "/",
+                                "/favicon.ico",
                                 "/login/**",
                                 "/logout/**",
                                 "/register/**",
-                                "/favicon.ico",
-                                "/"
+                                "/items/**"
                         ).permitAll()
                         .pathMatchers(
                                 "/cart/**",

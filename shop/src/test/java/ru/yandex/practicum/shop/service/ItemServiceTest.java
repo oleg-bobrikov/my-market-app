@@ -1,6 +1,5 @@
-package ru.yandex.practicum.payment.mymarket.service;
+package ru.yandex.practicum.shop.service;
 
-import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,7 +19,6 @@ import ru.yandex.practicum.shop.service.ItemService;
 
 import java.math.BigDecimal;
 import java.util.Map;
-import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -55,19 +53,19 @@ class ItemServiceTest {
     @Test
     void getItems_WhenSessionExists_ReturnsItemsWithCartCounts() {
         String search = "";
-        UUID sessionId = UuidCreator.getTimeOrderedEpoch();
+        long userId = 1L;
         Pageable pageable = PageRequest.of(0, 10);
-        
+
         ItemEntity itemEntity = ItemEntity.builder().id(1L).build();
-        
+
         Item itemModel = new Item();
         itemModel.setId(1L);
 
         when(itemRepository.findAll(pageable)).thenReturn(Flux.just(itemEntity));
-        when(cartService.getCartCounts(sessionId)).thenReturn(just(Map.of(1L, 5)));
+        when(cartService.getCartCounts(userId)).thenReturn(just(Map.of(1L, 5)));
         when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
 
-        itemService.getItems(search, sessionId, pageable)
+        itemService.getItems(search, userId, pageable)
                 .as(StepVerifier::create)
                 .expectNextMatches(result -> result.getId().equals(1L) && result.getCount() == 5)
                 .verifyComplete();
@@ -76,7 +74,7 @@ class ItemServiceTest {
     @Test
     void getItems_WhenCartCountsHasStringKeys_NormalizesAndReturnsCorrectCounts() {
         String search = "";
-        UUID sessionId = UUID.randomUUID();
+        long userId = 1L;
         Pageable pageable = PageRequest.of(0, 10);
 
         ItemEntity itemEntity = ItemEntity.builder().id(1L).build();
@@ -88,10 +86,10 @@ class ItemServiceTest {
 
         when(itemRepository.findAll(pageable)).thenReturn(Flux.just(itemEntity));
         // Используем raw types или Map<?, ?> для имитации того, что может прийти из кэша
-        when(cartService.getCartCounts(sessionId)).thenReturn(just((Map) rawCounts));
+        when(cartService.getCartCounts(userId)).thenReturn(just((Map) rawCounts));
         when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
 
-        itemService.getItems(search, sessionId, pageable)
+        itemService.getItems(search, userId, pageable)
                 .as(StepVerifier::create)
                 .expectNextMatches(result -> result.getId().equals(1L) && result.getCount() == 10)
                 .verifyComplete();
@@ -100,7 +98,7 @@ class ItemServiceTest {
     @Test
     void getItems_WhenSearchAndSortByPrice_ReturnsMatchingItems() {
         String search = "phone";
-        UUID sessionId = UUID.randomUUID();
+        long userId = 1L;
         Pageable pageable = PageRequest.of(0, 10, Sort.by("price"));
 
         ItemEntity itemEntity = ItemEntity.builder().id(1L).price(BigDecimal.valueOf(100)).build();
@@ -109,10 +107,10 @@ class ItemServiceTest {
 
         when(itemRepository.searchByTitleOrDescription(eq("%phone%"), eq(pageable)))
                 .thenReturn(Flux.just(itemEntity));
-        when(cartService.getCartCounts(sessionId)).thenReturn(just(Map.of()));
+        when(cartService.getCartCounts(userId)).thenReturn(just(Map.of()));
         when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
 
-        itemService.getItems(search, sessionId, pageable)
+        itemService.getItems(search, userId, pageable)
                 .as(StepVerifier::create)
                 .expectNextCount(1)
                 .verifyComplete();
@@ -123,7 +121,7 @@ class ItemServiceTest {
     @Test
     void getItems_WhenSearchAndSortByTitle_ReturnsMatchingItems() {
         String search = "phone";
-        UUID sessionId = UUID.randomUUID();
+        long userId = 1L;
         Pageable pageable = PageRequest.of(0, 10, Sort.by("title"));
 
         ItemEntity itemEntity = ItemEntity.builder().id(1L).title("iPhone").build();
@@ -132,10 +130,10 @@ class ItemServiceTest {
 
         when(itemRepository.searchByTitleOrDescription(eq("%phone%"), eq(pageable)))
                 .thenReturn(Flux.just(itemEntity));
-        when(cartService.getCartCounts(sessionId)).thenReturn(just(Map.of()));
+        when(cartService.getCartCounts(userId)).thenReturn(just(Map.of()));
         when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
 
-        itemService.getItems(search, sessionId, pageable)
+        itemService.getItems(search, userId, pageable)
                 .as(StepVerifier::create)
                 .expectNextCount(1)
                 .verifyComplete();
@@ -146,14 +144,14 @@ class ItemServiceTest {
     @Test
     void getItems_WhenNoResults_ReturnsEmptyFlux() {
         String search = "nonexistent";
-        UUID sessionId = UUID.randomUUID();
+        long userId = 1L;
         Pageable pageable = PageRequest.of(0, 10);
 
         when(itemRepository.searchByTitleOrDescription(anyString(), any(Pageable.class)))
                 .thenReturn(Flux.empty());
-        when(cartService.getCartCounts(sessionId)).thenReturn(just(Map.of()));
+        when(cartService.getCartCounts(userId)).thenReturn(just(Map.of()));
 
-        itemService.getItems(search, sessionId, pageable)
+        itemService.getItems(search, userId, pageable)
                 .as(StepVerifier::create)
                 .expectNextCount(0)
                 .verifyComplete();

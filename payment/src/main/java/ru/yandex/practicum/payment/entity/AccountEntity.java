@@ -17,7 +17,7 @@ import java.math.BigDecimal;
 @Builder
 public class AccountEntity implements Persistable<Long> {
     @Id
-    @Column("account_id")
+    @Column("id")
     private Long id;
 
     @Column("amount")

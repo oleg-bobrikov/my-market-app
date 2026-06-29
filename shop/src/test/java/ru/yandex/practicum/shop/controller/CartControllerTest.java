@@ -1,7 +1,7 @@
-package ru.yandex.practicum.payment.mymarket.controller;
+package ru.yandex.practicum.shop.controller;
 
-import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.shop.dto.ItemDto;
@@ -10,9 +10,8 @@ import ru.yandex.practicum.shop.model.Item;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
+
 import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
-import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockUser;
 
 import static org.mockito.Mockito.*;
 
@@ -30,7 +29,9 @@ public class CartControllerTest extends BaseWebFluxTest {
         when(itemMapper.toDto(item)).thenReturn(itemDto);
         when(paymentClient.getBalance(userId)).thenReturn(Mono.error(new RuntimeException("Service Unavailable")));
 
-        webTestClient.mutateWith(mockUser()).get().uri("/cart/items")
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .get().uri("/cart/items")
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
@@ -51,7 +52,9 @@ public class CartControllerTest extends BaseWebFluxTest {
         when(itemMapper.toDto(item)).thenReturn(itemDto);
         when(paymentClient.getBalance(userId)).thenReturn(Mono.just(BigDecimal.valueOf(100)));
 
-        webTestClient.mutateWith(mockUser()).get().uri("/cart/items")
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .get().uri("/cart/items")
                 .exchange()
                 .expectStatus().isOk();
     }
@@ -60,7 +63,9 @@ public class CartControllerTest extends BaseWebFluxTest {
     public void getCartItems_WhenNoSession_RedirectsToItemsAndCreatesSession() {
         when(itemService.getCartItems(any())).thenReturn(Flux.empty());
 
-        webTestClient.mutateWith(mockUser()).get().uri("/cart/items")
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .get().uri("/cart/items")
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/items")
@@ -75,7 +80,9 @@ public class CartControllerTest extends BaseWebFluxTest {
         when(cartService.updateCartItem(eq(userId), eq(1L), eq(CartAction.PLUS))).thenReturn(Mono.empty());
         when(itemService.getCartItems(userId)).thenReturn(Flux.just(item));
 
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri(uriBuilder -> uriBuilder.path("/cart/items")
+        webTestClient.mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri(uriBuilder -> uriBuilder.path("/cart/items")
                         .queryParam("id", "1")
                         .queryParam("action", "PLUS")
                         .build())
@@ -91,7 +98,9 @@ public class CartControllerTest extends BaseWebFluxTest {
         Long userId = 1L;
         when(itemService.getCartItems(userId)).thenReturn(Flux.empty());
 
-        webTestClient.mutateWith(mockUser()).get().uri("/cart/items")
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .get().uri("/cart/items")
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/items");
@@ -105,7 +114,9 @@ public class CartControllerTest extends BaseWebFluxTest {
         when(cartService.updateCartItem(eq(userId), eq(1L), eq(CartAction.PLUS))).thenReturn(Mono.empty());
         when(itemService.getCartItems(userId)).thenReturn(Flux.just(item));
 
-        webTestClient.mutateWith(csrf()).mutateWith(mockUser()).post().uri("/cart/items")
+        webTestClient.mutateWith(csrf())
+                .mutateWith(SecurityMockServerConfigurers.mockAuthentication(auth(1L)))
+                .post().uri("/cart/items")
                 .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
                 .body(org.springframework.web.reactive.function.BodyInserters.fromFormData("id", "1")
                         .with("action", "PLUS"))

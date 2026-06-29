@@ -1,4 +1,4 @@
-package ru.yandex.practicum.payment.mymarket.service;
+package ru.yandex.practicum.shop.service;
 
 import org.mockito.ArgumentMatchers;
 import org.springframework.transaction.reactive.TransactionalOperator;
@@ -168,7 +168,7 @@ class OrderServiceTest {
         when(itemService.getCartItems(userId)).thenReturn(Flux.just(new Item()));
         when(cartService.getTotalPrice(anyList())).thenReturn(Mono.just(total));
         when(paymentClient.getBalance(userId)).thenReturn(Mono.just(balance));
-        when(paymentClient.pay(any(PaymentRequest.class), eq(userId))).thenReturn(Mono.empty());
+        when(paymentClient.pay(any(PaymentRequest.class))).thenReturn(Mono.empty());
         when(orderMapper.toEntity(any(Order.class))).thenReturn(new OrderEntity());
         when(orderRepository.save(any(OrderEntity.class))).thenReturn(Mono.just(savedEntity));
         when(orderMapper.toModel(savedEntity)).thenReturn(savedModel);
