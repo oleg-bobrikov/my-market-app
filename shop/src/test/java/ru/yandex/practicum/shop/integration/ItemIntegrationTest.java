@@ -33,4 +33,12 @@ public class ItemIntegrationTest extends BaseIntegrationTest {
                     }
                 });
     }
+
+    @Test
+    void getItemDetails_AnonymousAccess_ShouldWork() {
+        webTestClient.get()
+                .uri("/items/1")
+                .exchange()
+                .expectStatus().isOk();
+    }
 }

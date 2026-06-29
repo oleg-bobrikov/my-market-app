@@ -32,6 +32,9 @@ public class OrderController {
     @PostMapping("/buy")
     public Mono<Rendering> buy(
             @AuthenticationPrincipal CustomUserDetails user) {
+        if (user == null) {
+            return Mono.just(Rendering.redirectTo("/login").build());
+        }
         Long userId = user.getUserId();
         return orderService.buy(userId)
                 .map(order -> Rendering.redirectTo("/orders/" + order.getId()).build())
@@ -66,6 +69,9 @@ public class OrderController {
             @RequestParam(defaultValue = "false") boolean newOrder,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
+        if (user == null) {
+            return Mono.just(Rendering.redirectTo("/login").build());
+        }
 
         return orderService.getOrderByIdAndSessionId(id, user.getUserId())
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Order not found")))
@@ -89,6 +95,9 @@ public class OrderController {
     public Mono<Rendering> findBySessionId(
             @AuthenticationPrincipal CustomUserDetails user
     ) {
+        if (user == null) {
+            return Mono.just(Rendering.redirectTo("/login").build());
+        }
         return orderService.findByUserId(user.getUserId())
                 .flatMap(order ->
                         orderService.getOrderItems(order.getId())

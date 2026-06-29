@@ -150,6 +150,10 @@ public class ItemController extends BaseController {
                     finalId
             );
 
+            if (user == null) {
+                return Mono.just("redirect:/login");
+            }
+
             return cartService.updateCartItem(user.getUserId(), finalId, cartAction)
                     .thenReturn(redirectUrl);
         });
@@ -160,7 +164,8 @@ public class ItemController extends BaseController {
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
-        return itemService.findByItemIdAndUserId(id, user.getUserId())
+        Long userId = user != null ? user.getUserId() : null;
+        return itemService.findByItemIdAndUserId(id, userId)
                 .map(itemMapper::toDto)
                 .defaultIfEmpty(emptyItem())
                 .map(item -> Rendering.view("item")
@@ -181,6 +186,10 @@ public class ItemController extends BaseController {
             @AuthenticationPrincipal CustomUserDetails user
     ) {
         log.debug("updateItemCountOnPage: id={}, action={}", id, action);
+
+        if (user == null) {
+            return Mono.just("redirect:/login");
+        }
 
         if (action == null) {
             log.warn("Missing required parameter: action for item id={}", id);

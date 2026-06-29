@@ -40,11 +40,11 @@ public class CartController extends BaseController {
             @AuthenticationPrincipal CustomUserDetails user,
             ServerWebExchange exchange) {
 
-        Long userId = user.getUserId();
-        if (userId == null) {
+        if (user == null) {
             log.error("User is not authenticated");
-            return Mono.just(Rendering.redirectTo("/items").build());
+            return Mono.just(Rendering.redirectTo("/login").build());
         }
+        Long userId = user.getUserId();
 
         return itemService.getCartItems(userId)
                 .collectList()
@@ -98,11 +98,11 @@ public class CartController extends BaseController {
 
             Long id = Long.valueOf(idStr);
             CartAction action = CartAction.valueOf(actionStr);
-            Long userId = user.getUserId();
-            if (userId == null) {
+            if (user == null) {
                 log.error("User is not authenticated");
-                return Mono.just("redirect:/items");
+                return Mono.just("redirect:/login");
             }
+            Long userId = user.getUserId();
 
             return cartService.updateCartItem(userId, id, action)
                     .then(itemService.getCartItems(userId).collectList())
