@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import reactor.test.StepVerifier;
+import ru.yandex.practicum.shop.entity.ItemEntity;
 import ru.yandex.practicum.shop.model.CartAction;
 import ru.yandex.practicum.shop.repository.OrderRepository;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -35,7 +36,7 @@ public class OrderIntegrationTest extends BaseIntegrationTest {
     void buy_WhenOrderCreated_RedirectsToOrderPage() {
         long userId = 1L;
 
-        ru.yandex.practicum.shop.entity.ItemEntity itemEntity = itemRepository.findAll().blockFirst();
+        ItemEntity itemEntity = itemRepository.findAll().blockFirst();
         long itemId = itemEntity != null ? itemEntity.getId() : 1L;
 
         when(paymentClient.getBalance(any())).thenReturn(Mono.just(new BigDecimal("1000.00")));

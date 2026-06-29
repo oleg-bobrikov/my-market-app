@@ -72,4 +72,16 @@ public abstract class BaseIntegrationTest {
                 user.getAuthorities()
         );
     }
+    protected List<String> extractTitles(String html) {
+        List<String> titles = new java.util.ArrayList<>();
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("<h5[^>]*class=\"card-title\"[^>]*>([^<]+)</h5>");
+        java.util.regex.Matcher matcher = pattern.matcher(html);
+        while (matcher.find()) {
+            String title = matcher.group(1).trim();
+            if (!title.isEmpty()) {
+                titles.add(title);
+            }
+        }
+        return titles;
+    }
 }

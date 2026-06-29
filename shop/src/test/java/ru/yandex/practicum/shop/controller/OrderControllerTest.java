@@ -5,6 +5,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import ru.yandex.practicum.shop.dto.ItemDto;
 import ru.yandex.practicum.shop.exception.InsufficientFundsException;
 import ru.yandex.practicum.shop.exception.PaymentServiceException;
 import ru.yandex.practicum.shop.model.Order;
@@ -43,7 +44,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
 
         when(orderService.buy(userId)).thenReturn(Mono.error(new InsufficientFundsException("на балансе недостаточно средств")));
         when(itemService.getCartItems(userId)).thenReturn(Flux.just(new ru.yandex.practicum.shop.model.Item()));
-        when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
+        when(itemMapper.toDto(any())).thenReturn(new ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
 
         webTestClient
@@ -64,7 +65,7 @@ public class OrderControllerTest extends BaseWebFluxTest {
 
         when(orderService.buy(userId)).thenReturn(Mono.error(new PaymentServiceException("Service down")));
         when(itemService.getCartItems(userId)).thenReturn(Flux.just(new ru.yandex.practicum.shop.model.Item()));
-        when(itemMapper.toDto(any())).thenReturn(new ru.yandex.practicum.shop.dto.ItemDto());
+        when(itemMapper.toDto(any())).thenReturn(new ItemDto());
         when(cartService.getTotalPrice(any())).thenReturn(Mono.just(total));
 
         webTestClient

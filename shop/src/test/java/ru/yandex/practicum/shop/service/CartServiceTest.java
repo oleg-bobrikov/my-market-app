@@ -7,6 +7,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import ru.yandex.practicum.shop.entity.CartItemEntity;
 import ru.yandex.practicum.shop.model.CartAction;
 import ru.yandex.practicum.shop.model.Item;
 import ru.yandex.practicum.shop.repository.CartRepository;
@@ -37,7 +38,7 @@ class CartServiceTest {
         Long itemId = 1L;
 
         when(cartRepository.findByUserIdAndItemId(userId, itemId)).thenReturn(Mono.empty());
-        when(cartRepository.save(any())).thenReturn(Mono.just(new ru.yandex.practicum.shop.entity.CartItemEntity()));
+        when(cartRepository.save(any())).thenReturn(Mono.just(new CartItemEntity()));
 
         cartService.updateCartItem(userId, itemId, CartAction.PLUS)
                 .as(StepVerifier::create)

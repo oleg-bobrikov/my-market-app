@@ -15,7 +15,12 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.transaction.ReactiveTransactionManager;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import ru.yandex.practicum.shop.client.PaymentClient;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import ru.yandex.practicum.shop.dto.ItemDto;
+import ru.yandex.practicum.shop.mapper.CartItemMapper;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
+import ru.yandex.practicum.shop.mapper.OrderMapper;
 import ru.yandex.practicum.shop.repository.CartRepository;
 import ru.yandex.practicum.shop.repository.ItemRepository;
 import ru.yandex.practicum.shop.repository.OrderItemRepository;
@@ -24,13 +29,7 @@ import ru.yandex.practicum.shop.security.ReactiveUserService;
 import ru.yandex.practicum.shop.security.CustomUserDetails;
 import ru.yandex.practicum.shop.service.*;
 
-import org.springframework.data.redis.core.ReactiveRedisTemplate;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-
 import java.util.List;
-
-import ru.yandex.practicum.shop.mapper.CartItemMapper;
-import ru.yandex.practicum.shop.mapper.OrderMapper;
 
 @WebFluxTest(controllers = {CartController.class, ItemController.class, OrderController.class, ImageController.class, GlobalErrorHandler.class, LoginController.class}, properties = {"spring.main.allow-bean-definition-overriding=true", "app.cookie.max-age=7d"})
 @ContextConfiguration(classes = {ru.yandex.practicum.shop.ShopApplication.class})
