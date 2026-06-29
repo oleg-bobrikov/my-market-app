@@ -50,7 +50,6 @@ public class ItemControllerTest extends BaseWebFluxTest {
                         .queryParam("action", "PLUS")
                         .queryParam("sort", "PRICE")
                         .build())
-                .cookie("SESSION_ID", "00000000-0000-0000-0000-000000000001")
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/items?search=&sort=PRICE&pageSize=5&pageNumber=1#item-1");
@@ -66,7 +65,6 @@ public class ItemControllerTest extends BaseWebFluxTest {
                 .post().uri("/items/1")
                 .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
                 .body(org.springframework.web.reactive.function.BodyInserters.fromFormData("action", "PLUS"))
-                .cookie("SESSION_ID", "00000000-0000-0000-0000-000000000001")
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/items/1");

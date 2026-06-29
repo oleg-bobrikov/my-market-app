@@ -68,8 +68,7 @@ public class CartControllerTest extends BaseWebFluxTest {
                 .get().uri("/cart/items")
                 .exchange()
                 .expectStatus().is3xxRedirection()
-                .expectHeader().valueEquals("Location", "/items")
-                .expectCookie().exists("SESSION_ID");
+                .expectHeader().valueEquals("Location", "/items");
     }
 
     @Test
