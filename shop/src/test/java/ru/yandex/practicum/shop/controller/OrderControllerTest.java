@@ -1,7 +1,6 @@
 package ru.yandex.practicum.shop.controller;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;

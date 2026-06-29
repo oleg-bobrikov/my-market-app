@@ -14,8 +14,6 @@ import ru.yandex.practicum.shop.entity.ItemEntity;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.model.Item;
 import ru.yandex.practicum.shop.repository.ItemRepository;
-import ru.yandex.practicum.shop.service.CartService;
-import ru.yandex.practicum.shop.service.ItemService;
 
 import java.math.BigDecimal;
 import java.util.Map;

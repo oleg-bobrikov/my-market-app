@@ -1,6 +1,5 @@
 package ru.yandex.practicum.shop.integration;
 
-import com.github.f4b6a3.uuid.UuidCreator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
@@ -11,15 +10,12 @@ import ru.yandex.practicum.shop.model.CartAction;
 import ru.yandex.practicum.shop.repository.ItemRepository;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 import ru.yandex.practicum.shop.exception.InsufficientFundsException;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
-
 import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
-import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockUser;
 
 public class InsufficientFundsIntegrationTest extends BaseIntegrationTest {
 

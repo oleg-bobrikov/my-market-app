@@ -52,7 +52,7 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
         assertEquals("Cached Item", firstCall.getTitle());
 
         // Проверяем наличие в кэше через CacheManager (т.к. мы перешли на Spring Cache)
-        assertNotNull(cacheManager.getCache("items").get(id), "Item should be in cache after first call");
+        assertNotNull(Objects.requireNonNull(cacheManager.getCache("items")).get(id), "Item should be in cache after first call");
 
         // 3. Изменяем товар в БД напрямую (в обход сервиса)
         savedEntity.setTitle("Updated in DB");
@@ -64,7 +64,7 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
         assertEquals("Cached Item", secondCall.getTitle(), "Should return cached value, not from DB");
 
         // 5. Очищаем кэш и проверяем, что теперь подтянется из БД
-        cacheManager.getCache("items").evict(id);
+        Objects.requireNonNull(cacheManager.getCache("items")).evict(id);
         Item thirdCall = itemService.findByItemId(id).block();
         assertNotNull(thirdCall);
         assertEquals("Updated in DB", thirdCall.getTitle());
@@ -85,13 +85,14 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
                 .count(5)
                 .build();
         ItemEntity saved = itemRepository.save(entity).block();
+        assertNotNull(saved);
         Long itemId = saved.getId();
 
         // 2. Запрашиваем список (пустая корзина)
         List<Item> itemsBefore = itemService.getItems(search, userId, pageable).collectList().block();
         assertNotNull(itemsBefore);
         assertFalse(itemsBefore.isEmpty());
-        assertEquals(0, itemsBefore.get(0).getCount(), "Count should be 0 for new session");
+        assertEquals(0, itemsBefore.getFirst().getCount(), "Count should be 0 for new session");
 
         // 3. Добавляем в корзину
         cartService.updateCartItem(userId, itemId, ru.yandex.practicum.shop.model.CartAction.PLUS).block();
@@ -99,7 +100,7 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
         // 4. Запрашиваем список снова
         List<Item> itemsAfter = itemService.getItems(search, userId, pageable).collectList().block();
         assertNotNull(itemsAfter);
-        assertEquals(1, itemsAfter.get(0).getCount(), "Count should be updated even with caching");
+        assertEquals(1, itemsAfter.getFirst().getCount(), "Count should be updated even with caching");
     }
 
     @Test
@@ -109,7 +110,7 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
         var pageable = org.springframework.data.domain.PageRequest.of(0, 10);
         
         // Очищаем кэш
-        cacheManager.getCache("item-lists").clear();
+        Objects.requireNonNull(cacheManager.getCache("item-lists")).clear();
 
         // 1. Создаем товар
         ItemEntity entity = ItemEntity.builder()

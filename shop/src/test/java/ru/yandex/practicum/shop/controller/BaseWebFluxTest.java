@@ -17,7 +17,6 @@ import org.springframework.transaction.reactive.TransactionalOperator;
 import ru.yandex.practicum.shop.client.PaymentClient;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import ru.yandex.practicum.shop.dto.ItemDto;
 import ru.yandex.practicum.shop.mapper.CartItemMapper;
 import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.mapper.OrderMapper;

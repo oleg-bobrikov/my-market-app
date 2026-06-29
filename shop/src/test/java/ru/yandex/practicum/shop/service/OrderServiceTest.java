@@ -28,9 +28,6 @@ import ru.yandex.practicum.shop.repository.CartRepository;
 import ru.yandex.practicum.shop.repository.ItemRepository;
 import ru.yandex.practicum.shop.repository.OrderItemRepository;
 import ru.yandex.practicum.shop.repository.OrderRepository;
-import ru.yandex.practicum.shop.service.CartService;
-import ru.yandex.practicum.shop.service.ItemService;
-import ru.yandex.practicum.shop.service.OrderService;
 
 import java.math.BigDecimal;
 

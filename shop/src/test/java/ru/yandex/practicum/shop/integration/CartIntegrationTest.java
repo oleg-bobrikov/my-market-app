@@ -70,7 +70,10 @@ public class CartIntegrationTest extends BaseIntegrationTest {
                 .expectNextMatches(counts -> {
                     Object count = counts.get(itemId);
                     if (count == null) count = counts.get(Math.toIntExact(itemId));
-                    if (count == null) count = counts.get(String.valueOf(itemId));
+                    if (count == null) {
+                        // Use raw map to avoid type checking warning when accessing with String key
+                        count = ((Map) counts).get(String.valueOf(itemId));
+                    }
                     return count != null && Integer.valueOf(count.toString()) == 2;
                 })
                 .verifyComplete();
@@ -207,8 +210,11 @@ public class CartIntegrationTest extends BaseIntegrationTest {
                     // cartService.getCartCounts(sessionId) возвращает данные напрямую из кеша.
                     Object count = counts.get(itemId);
                     if (count == null) count = counts.get(Math.toIntExact(itemId));
-                    if (count == null) count = counts.get(String.valueOf(itemId));
-                    return count != null && Integer.valueOf(count.toString()) == 2;
+                    if (count == null) {
+                        // Use raw map to avoid type checking warning when accessing with String key
+                        count = ((Map) counts).get(String.valueOf(itemId));
+                    }
+                    return count != null && Integer.parseInt(count.toString()) == 2;
                 })
                 .verifyComplete();
     }
