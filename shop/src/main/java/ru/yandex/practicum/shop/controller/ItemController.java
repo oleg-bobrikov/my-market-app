@@ -24,10 +24,7 @@ import ru.yandex.practicum.shop.service.CartService;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.IntStream;
-
-import static ru.yandex.practicum.shop.filter.SessionWebFilter.SESSION_ATTRIBUTE;
 
 @Slf4j
 @Controller
@@ -52,8 +49,7 @@ public class ItemController extends BaseController {
             @RequestParam(required = false, defaultValue = "NO") SortType sort,
             @RequestParam(required = false, defaultValue = "5") int pageSize,
             @RequestParam(required = false, defaultValue = "1") int pageNumber,
-            @AuthenticationPrincipal CustomUserDetails user,
-            ServerWebExchange exchange
+            @AuthenticationPrincipal CustomUserDetails user
     ) {
 
         Sort sortOrder = switch (sort) {
@@ -71,12 +67,11 @@ public class ItemController extends BaseController {
                 .map(itemMapper::toDto)
                 .collectList()
                 .flatMap(content -> {
-                    int chunkSize = pageSize;
                     List<List<ItemDto>> items = IntStream
-                            .range(0, (content.size() + chunkSize - 1) / chunkSize)
+                            .range(0, (content.size() + pageSize - 1) / pageSize)
                             .mapToObj(i -> {
-                                int start = i * chunkSize;
-                                int end = Math.min(start + chunkSize, content.size());
+                                int start = i * pageSize;
+                                int end = Math.min(start + pageSize, content.size());
                                 return (List<ItemDto>) new ArrayList<>(content.subList(start, end));
                             })
                             .toList();
