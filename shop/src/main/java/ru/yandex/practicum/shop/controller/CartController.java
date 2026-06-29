@@ -36,12 +36,9 @@ public class CartController extends BaseController {
 
     @GetMapping("/items")
     @PreAuthorize("hasRole('USER')")
-    public Mono<Rendering> getCartItems(
-            @AuthenticationPrincipal CustomUserDetails user,
-            ServerWebExchange exchange) {
+    public Mono<Rendering> getCartItems(@AuthenticationPrincipal CustomUserDetails user) {
 
         if (user == null) {
-            log.error("User is not authenticated");
             return Mono.just(Rendering.redirectTo("/login").build());
         }
         Long userId = user.getUserId();

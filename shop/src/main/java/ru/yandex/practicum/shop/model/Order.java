@@ -3,7 +3,6 @@ package ru.yandex.practicum.shop.model;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 @Getter
 @Setter
