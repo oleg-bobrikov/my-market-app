@@ -22,35 +22,36 @@ public class PaymentService {
 
     @Transactional
     public Mono<PaymentResponse> payOrder(PaymentRequest paymentRequest) {
+        Long clientId = paymentRequest.getClientId();
+        String orderId = paymentRequest.getOrderId();
         BigDecimal amountToPay = new BigDecimal(paymentRequest.getAmount());
-        var clientId = paymentRequest.getClientId();
-        log.info("Запрос на оплату: clientId={}, orderId={}, amount={}", clientId, paymentRequest.getOrderId(), amountToPay);
-        
-        var accountId = paymentRequest.getClientId();
-        return getOrCreateAccount(accountId)
-                .flatMap(account -> accountRepository.updateBalance(accountId, amountToPay)
+
+        log.info("Запрос на оплату: clientId={}, orderId={}, amount={}", clientId, orderId, amountToPay);
+
+        return getOrCreateAccount(clientId)
+                .flatMap(account -> accountRepository.updateBalance(clientId, amountToPay)
                         .flatMap(rowsUpdated -> {
                             if (rowsUpdated > 0) {
-                                return accountRepository.findById(accountId)
+                                return accountRepository.findById(clientId)
                                         .map(updatedAccount -> {
                                             log.info("Оплата успешно выполнена: accountId={}, orderId={}, newBalance={}",
-                                                    accountId, paymentRequest.getOrderId(), updatedAccount.getAmount());
+                                                    clientId, orderId, updatedAccount.getAmount());
                                             PaymentResponse response = new PaymentResponse();
                                             response.setStatus(PaymentStatus.SUCCESS);
-                                            response.setOrderId(paymentRequest.getOrderId());
+                                            response.setOrderId(orderId);
                                             response.setRemainingBalance(updatedAccount.getAmount().toString());
                                             return response;
                                         });
                             } else {
                                 log.warn("Недостаточно средств для оплаты или аккаунт не найден: accountId={}, orderId={}, required={}",
-                                        accountId, paymentRequest.getOrderId(), amountToPay);
+                                        clientId, orderId, amountToPay);
                                 return Mono.error(new InsufficientFundsException("Недостаточно средств на счете"));
                             }
                         }))
                 .doOnError(e -> {
                     if (!(e instanceof InsufficientFundsException)) {
                         log.error("Ошибка при выполнении оплаты: accountId={}, orderId={}, error={}",
-                                accountId, paymentRequest.getOrderId(), e.getMessage());
+                                clientId, orderId, e.getMessage());
                     }
                 });
     }
