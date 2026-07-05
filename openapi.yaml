@@ -36,10 +36,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /balance:
+  /balance/{accountId}:
     get:
       operationId: getBalance
       summary: Получить информацию о балансе счета
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
         '200':
           description: Успешный ответ
@@ -49,19 +56,13 @@ paths:
                 $ref: '#/components/schemas/Balance'
 
 components:
-  securitySchemes:
-    SessionAuth:
-      type: apiKey
-      in: header
-      name: session_id
-
   schemas:
     Balance:
       type: object
       properties:
         clientId:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         balance:
           type: string
           description: Баланс в рублях
@@ -70,9 +71,13 @@ components:
     PaymentRequest:
       type: object
       required:
+        - clientId
         - orderId
         - amount
       properties:
+        clientId:
+          type: integer
+          format: int64
         orderId:
           type: string
           example: "ORD-123"

@@ -11,7 +11,6 @@ import ru.yandex.practicum.shop.mapper.ItemMapper;
 import ru.yandex.practicum.shop.repository.ItemRepository;
 
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 public class ItemService {
@@ -45,8 +44,8 @@ public class ItemService {
                 .map(itemMapper::toModel);
     }
 
-    public Flux<Item> getItems(String search, UUID sessionId, Pageable pageable) {
-        return cartService.getCartCounts(sessionId)
+    public Flux<Item> getItems(String search, Long userId, Pageable pageable) {
+        return cartService.getCartCounts(userId)
                 .map(this::normalizeCartCounts)
                 .flatMapMany(cartCounts ->
                         self.getBaseItems(search, pageable).map(item -> {
@@ -58,9 +57,9 @@ public class ItemService {
                 );
     }
 
-    public Mono<Item> findByItemIdAndSessionId(Long id, UUID sessionId) {
+    public Mono<Item> findByItemIdAndUserId(Long id, Long userId) {
         return self.findByItemId(id)
-                .zipWith(cartService.getCartCounts(sessionId)
+                .zipWith(cartService.getCartCounts(userId)
                         .map(this::normalizeCartCounts)
                         .map(counts -> counts.getOrDefault(id, 0)))
                 .map(tuple -> {
@@ -70,8 +69,8 @@ public class ItemService {
                 });
     }
 
-    public Flux<Item> getCartItems(UUID sessionId) {
-        return cartService.getCartCounts(sessionId)
+    public Flux<Item> getCartItems(Long userId) {
+        return cartService.getCartCounts(userId)
                 .map(this::normalizeCartCounts)
                 .flatMapMany(counts -> {
                     if (counts.isEmpty()) {

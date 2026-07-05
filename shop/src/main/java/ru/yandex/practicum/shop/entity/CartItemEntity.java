@@ -6,8 +6,6 @@ import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
-import java.util.UUID;
-
 @Table(name = "carts")
 @Getter
 @Setter
@@ -18,8 +16,8 @@ public class CartItemEntity {
     @Id
     private Long id;
 
-    @Column("session_id")
-    private UUID sessionId;
+    @Column("user_id")
+    private Long userId;
 
     @Column("item_id")
     private Long itemId;

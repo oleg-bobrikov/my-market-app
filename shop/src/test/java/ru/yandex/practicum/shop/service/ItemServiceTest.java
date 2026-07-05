@@ -1,0 +1,157 @@
+package ru.yandex.practicum.shop.service;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import reactor.core.publisher.Flux;
+import reactor.test.StepVerifier;
+import ru.yandex.practicum.shop.entity.ItemEntity;
+import ru.yandex.practicum.shop.mapper.ItemMapper;
+import ru.yandex.practicum.shop.model.Item;
+import ru.yandex.practicum.shop.repository.ItemRepository;
+
+import java.math.BigDecimal;
+import java.util.Map;
+
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import static reactor.core.publisher.Mono.just;
+
+@ExtendWith(MockitoExtension.class)
+class ItemServiceTest {
+
+    @Mock
+    private ItemRepository itemRepository;
+
+    @Mock
+    private CartService cartService;
+
+    @Mock
+    private ItemMapper itemMapper;
+
+    private ItemService itemService;
+
+    @BeforeEach
+    void setUp() {
+        itemService = spy(new ItemService(itemRepository, cartService, itemMapper, null));
+        try {
+            java.lang.reflect.Field field = ItemService.class.getDeclaredField("self");
+            field.setAccessible(true);
+            field.set(itemService, itemService);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void getItems_WhenSessionExists_ReturnsItemsWithCartCounts() {
+        String search = "";
+        long userId = 1L;
+        Pageable pageable = PageRequest.of(0, 10);
+
+        ItemEntity itemEntity = ItemEntity.builder().id(1L).build();
+
+        Item itemModel = new Item();
+        itemModel.setId(1L);
+
+        when(itemRepository.findAll(pageable)).thenReturn(Flux.just(itemEntity));
+        when(cartService.getCartCounts(userId)).thenReturn(just(Map.of(1L, 5)));
+        when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
+
+        itemService.getItems(search, userId, pageable)
+                .as(StepVerifier::create)
+                .expectNextMatches(result -> result.getId().equals(1L) && result.getCount() == 5)
+                .verifyComplete();
+    }
+
+    @Test
+    void getItems_WhenCartCountsHasStringKeys_NormalizesAndReturnsCorrectCounts() {
+        String search = "";
+        long userId = 1L;
+        Pageable pageable = PageRequest.of(0, 10);
+
+        ItemEntity itemEntity = ItemEntity.builder().id(1L).build();
+        Item itemModel = new Item();
+        itemModel.setId(1L);
+
+        // Имитируем ситуацию, когда Redis вернул Map со строковыми ключами
+        Map<String, Integer> rawCounts = Map.of("1", 10);
+
+        when(itemRepository.findAll(pageable)).thenReturn(Flux.just(itemEntity));
+        // Используем raw types или Map<?, ?> для имитации того, что может прийти из кэша
+        when(cartService.getCartCounts(userId)).thenReturn(just((Map) rawCounts));
+        when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
+
+        itemService.getItems(search, userId, pageable)
+                .as(StepVerifier::create)
+                .expectNextMatches(result -> result.getId().equals(1L) && result.getCount() == 10)
+                .verifyComplete();
+    }
+
+    @Test
+    void getItems_WhenSearchAndSortByPrice_ReturnsMatchingItems() {
+        String search = "phone";
+        long userId = 1L;
+        Pageable pageable = PageRequest.of(0, 10, Sort.by("price"));
+
+        ItemEntity itemEntity = ItemEntity.builder().id(1L).price(BigDecimal.valueOf(100)).build();
+        Item itemModel = new Item();
+        itemModel.setId(1L);
+
+        when(itemRepository.searchByTitleOrDescription(eq("%phone%"), eq(pageable)))
+                .thenReturn(Flux.just(itemEntity));
+        when(cartService.getCartCounts(userId)).thenReturn(just(Map.of()));
+        when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
+
+        itemService.getItems(search, userId, pageable)
+                .as(StepVerifier::create)
+                .expectNextCount(1)
+                .verifyComplete();
+
+        verify(itemRepository).searchByTitleOrDescription(eq("%phone%"), eq(pageable));
+    }
+
+    @Test
+    void getItems_WhenSearchAndSortByTitle_ReturnsMatchingItems() {
+        String search = "phone";
+        long userId = 1L;
+        Pageable pageable = PageRequest.of(0, 10, Sort.by("title"));
+
+        ItemEntity itemEntity = ItemEntity.builder().id(1L).title("iPhone").build();
+        Item itemModel = new Item();
+        itemModel.setId(1L);
+
+        when(itemRepository.searchByTitleOrDescription(eq("%phone%"), eq(pageable)))
+                .thenReturn(Flux.just(itemEntity));
+        when(cartService.getCartCounts(userId)).thenReturn(just(Map.of()));
+        when(itemMapper.toModel(itemEntity)).thenReturn(itemModel);
+
+        itemService.getItems(search, userId, pageable)
+                .as(StepVerifier::create)
+                .expectNextCount(1)
+                .verifyComplete();
+
+        verify(itemRepository).searchByTitleOrDescription(eq("%phone%"), eq(pageable));
+    }
+
+    @Test
+    void getItems_WhenNoResults_ReturnsEmptyFlux() {
+        String search = "nonexistent";
+        long userId = 1L;
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(itemRepository.searchByTitleOrDescription(anyString(), any(Pageable.class)))
+                .thenReturn(Flux.empty());
+        when(cartService.getCartCounts(userId)).thenReturn(just(Map.of()));
+
+        itemService.getItems(search, userId, pageable)
+                .as(StepVerifier::create)
+                .expectNextCount(0)
+                .verifyComplete();
+    }
+}

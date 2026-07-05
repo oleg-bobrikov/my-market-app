@@ -20,7 +20,6 @@ import ru.yandex.practicum.shop.repository.OrderItemRepository;
 import ru.yandex.practicum.shop.repository.OrderRepository;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 
 @Service
@@ -37,22 +36,23 @@ public class OrderService {
     private final PaymentClient paymentClient;
     private final TransactionalOperator transactionalOperator;
 
-    public Mono<BigDecimal> getBalance(UUID sessionId) {
-        return paymentClient.getBalance(sessionId);
+    public Mono<BigDecimal> getBalance(Long userId) {
+        return paymentClient.getBalance(userId);
     }
 
-    public Mono<BigDecimal> calculateTotal(UUID sessionId) {
-        return itemService.getCartItems(sessionId)
+    public Mono<BigDecimal> calculateTotal(Long userId) {
+        return itemService.getCartItems(userId)
                 .collectList()
                 .flatMap(cartService::getTotalPrice);
     }
 
-    public Mono<Order> buy(UUID sessionId) {
-        if (sessionId == null) {
-            return Mono.error(new IllegalStateException("Session ID is null"));
+    public Mono<Order> buy(Long userId) {
+        if (userId == null) {
+            return Mono.error(new IllegalStateException("User ID is null"));
         }
-        return calculateTotal(sessionId)
-                .flatMap(total -> getBalance(sessionId)
+
+        return calculateTotal(userId)
+                .flatMap(total -> getBalance(userId)
                         .zipWith(Mono.just(total))
                 )
                 .flatMap(tuple -> {
@@ -63,8 +63,9 @@ public class OrderService {
                         return Mono.error(new InsufficientFundsException("Недостаточно средств на счете"));
                     }
 
-                    return paymentClient.pay(new PaymentRequest(sessionId.toString(), total), sessionId)
-                            .then(createOrder(sessionId));
+                    return createOrder(userId)
+                            .flatMap(order -> paymentClient.pay(new PaymentRequest(userId, order.getId(), order.getTotal()))
+                                    .thenReturn(order));
                 })
                 .onErrorMap(e -> {
                     if (e instanceof InsufficientFundsException || e instanceof IllegalStateException) {
@@ -75,8 +76,8 @@ public class OrderService {
                 .as(transactionalOperator::transactional);
     }
 
-    public Mono<Order> createOrder(UUID sessionId) {
-        return itemService.getCartItems(sessionId)
+    public Mono<Order> createOrder(Long userId) {
+        return itemService.getCartItems(userId)
                 .collectList()
                 .flatMap(items -> {
                     if (items.isEmpty()) {
@@ -86,7 +87,7 @@ public class OrderService {
                     return cartService.getTotalPrice(items)
                             .flatMap(total -> {
                                 Order order = Order.builder()
-                                        .sessionId(sessionId)
+                                        .userId(userId)
                                         .total(total)
                                         .build();
 
@@ -104,16 +105,16 @@ public class OrderService {
                                                     }).toList();
 
                                             return orderItemRepository.saveAll(Flux.fromIterable(orderItems))
-                                                    .then(cartRepository.deleteBySessionId(sessionId))
-                                                    .then(cartService.clearCart(sessionId))
+                                                    .then(cartRepository.deleteByUserId(userId))
+                                                    .then(cartService.clearCart(userId))
                                                     .thenReturn(savedOrder);
                                         });
                             });
                 });
     }
 
-    public Mono<Order> getOrderByIdAndSessionId(Long id, UUID sessionId) {
-        return orderRepository.findByIdAndSessionId(id, sessionId).map(orderMapper::toModel);
+    public Mono<Order> getOrderByIdAndSessionId(Long id, Long userId) {
+        return orderRepository.findByIdAndUserId(id, userId).map(orderMapper::toModel);
     }
 
     public Flux<Item> getOrderItems(Long orderId) {
@@ -128,7 +129,7 @@ public class OrderService {
                 );
     }
 
-    public Flux<Order> findBySessionId(UUID sessionId) {
-        return orderRepository.findBySessionId(sessionId).map(orderMapper::toModel);
+    public Flux<Order> findByUserId(Long userId) {
+        return orderRepository.findByUserId(userId).map(orderMapper::toModel);
     }
 }

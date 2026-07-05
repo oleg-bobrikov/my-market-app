@@ -4,7 +4,6 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-import ru.yandex.practicum.shop.dto.ItemDto;
 import ru.yandex.practicum.shop.entity.CartItemEntity;
 import ru.yandex.practicum.shop.model.CartAction;
 import ru.yandex.practicum.shop.model.Item;
@@ -13,7 +12,6 @@ import ru.yandex.practicum.shop.repository.CartRepository;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,9 +22,9 @@ public class CartService {
         this.cartRepository = cartRepository;
     }
 
-    @CacheEvict(value = "carts", key = "#sessionId")
-    public Mono<Void> updateCartItem(UUID sessionId, Long itemId, CartAction action) {
-        return cartRepository.findBySessionIdAndItemId(sessionId, itemId)
+    @CacheEvict(value = "carts", key = "#userId")
+    public Mono<Void> updateCartItem(Long userId, Long itemId, CartAction action) {
+        return cartRepository.findByUserIdAndItemId(userId, itemId)
                 .flatMap(entity -> {
                     switch (action) {
                         case PLUS -> entity.setCount(entity.getCount() + 1);
@@ -46,7 +44,7 @@ public class CartService {
                     if (action == CartAction.PLUS) {
                         return cartRepository.save(
                                 CartItemEntity.builder()
-                                        .sessionId(sessionId)
+                                        .userId(userId)
                                         .itemId(itemId)
                                         .count(1)
                                         .build()
@@ -57,12 +55,12 @@ public class CartService {
                 .then();
     }
 
-    @Cacheable(value = "carts", key = "#sessionId")
-    public Mono<Map<Long, Integer>> getCartCounts(UUID sessionId) {
-        if (sessionId == null) {
-            return Mono.empty();
+    @Cacheable(value = "carts", key = "#userId", condition = "#userId != null")
+    public Mono<Map<Long, Integer>> getCartCounts(Long userId) {
+        if (userId == null) {
+            return Mono.just(Map.of());
         }
-        return cartRepository.findBySessionId(sessionId)
+        return cartRepository.findByUserId(userId)
                 .collect(Collectors.toMap(
                         CartItemEntity::getItemId,
                         CartItemEntity::getCount
@@ -81,8 +79,8 @@ public class CartService {
         );
     }
 
-    @CacheEvict(value = "carts", key = "#sessionId")
-    public Mono<Void> clearCart(UUID sessionId) {
-        return cartRepository.deleteBySessionId(sessionId);
+    @CacheEvict(value = "carts", key = "#userId")
+    public Mono<Void> clearCart(Long userId) {
+        return cartRepository.deleteByUserId(userId);
     }
 }

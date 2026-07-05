@@ -3,7 +3,8 @@ package ru.yandex.practicum.shop.client.model;
 import java.math.BigDecimal;
 
 public record PaymentRequest(
-        String orderId,
+        Long userId,
+        Long orderId,
         BigDecimal amount
 ) {
 }

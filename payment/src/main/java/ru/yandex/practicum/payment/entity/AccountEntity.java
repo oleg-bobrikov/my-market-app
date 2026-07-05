@@ -7,7 +7,7 @@ import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import java.math.BigDecimal;
-import java.util.UUID;
+
 
 @Table("accounts")
 @Getter
@@ -15,10 +15,10 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AccountEntity implements Persistable<UUID> {
+public class AccountEntity implements Persistable<Long> {
     @Id
-    @Column("account_id")
-    private UUID id;
+    @Column("id")
+    private Long id;
 
     @Column("amount")
     private BigDecimal amount;

@@ -1,6 +1,23 @@
 version: "3.8"
 
 services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    volumes:
+      - ./keycloak/import:/opt/keycloak/data/import
+    ports:
+      - "8082:8080"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health/ready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
   redis:
     image: redis:7
     ports:
@@ -20,8 +37,12 @@ services:
     environment:
       - SERVER_PORT=8081
       - SPRING_R2DBC_URL=r2dbc:h2:mem:///payment;DB_CLOSE_DELAY=-1
+      - JWT_ISSUER_URI=http://keycloak:8080/realms/my-market-app
     depends_on:
-      - redis
+      keycloak:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   shop:
     build:
