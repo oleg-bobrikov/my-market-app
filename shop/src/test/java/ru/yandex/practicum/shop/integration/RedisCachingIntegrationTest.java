@@ -12,6 +12,10 @@ import java.util.List;
 import java.util.Objects;
 
 import org.springframework.cache.CacheManager;
+import org.springframework.data.domain.PageRequest;
+import ru.yandex.practicum.shop.service.CartService;
+import ru.yandex.practicum.shop.model.CartAction;
+import org.springframework.data.redis.cache.RedisCache;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,7 +28,7 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
     private ItemRepository itemRepository;
 
     @Autowired
-    private ru.yandex.practicum.shop.service.CartService cartService;
+    private CartService cartService;
 
     @Autowired
     private CacheManager cacheManager;
@@ -74,7 +78,7 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
     void getItems_WhenCartUpdated_ReturnsUpdatedCounts() {
         Long userId = 1L;
         String search = "cache_test";
-        var pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        var pageable = PageRequest.of(0, 10);
 
         // 1. Создаем товар
         ItemEntity entity = ItemEntity.builder()
@@ -95,7 +99,7 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
         assertEquals(0, itemsBefore.getFirst().getCount(), "Count should be 0 for new session");
 
         // 3. Добавляем в корзину
-        cartService.updateCartItem(userId, itemId, ru.yandex.practicum.shop.model.CartAction.PLUS).block();
+        cartService.updateCartItem(userId, itemId, CartAction.PLUS).block();
 
         // 4. Запрашиваем список снова
         List<Item> itemsAfter = itemService.getItems(search, userId, pageable).collectList().block();
@@ -107,7 +111,7 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
     void getItems_WhenCalled_CachesList() {
         Long userId = 1L;
         String search = "unique_search";
-        var pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        var pageable = PageRequest.of(0, 10);
         
         // Очищаем кэш
         Objects.requireNonNull(cacheManager.getCache("item-lists")).clear();
@@ -127,7 +131,7 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
 
         // 3. Проверяем, что в кеше что-то появилось
         // Вместо попытки угадать ключ, проверяем, что кеш не пуст
-        org.springframework.data.redis.cache.RedisCache cache = (org.springframework.data.redis.cache.RedisCache) cacheManager.getCache("item-lists");
+        RedisCache cache = (RedisCache) cacheManager.getCache("item-lists");
         // Так как мы в интеграционном тесте с реальным Redis, мы можем проверить наличие хоть какой-то записи,
         // Но проще всего добавить логирование ключей или использовать Native Cache
         assertNotNull(cache, "Cache item-lists should exist");
@@ -144,7 +148,7 @@ public class RedisCachingIntegrationTest extends BaseIntegrationTest {
         Long itemId = 1L;
 
         // 1. Добавляем в корзину
-        cartService.updateCartItem(userId, itemId, ru.yandex.practicum.shop.model.CartAction.PLUS).block();
+        cartService.updateCartItem(userId, itemId, CartAction.PLUS).block();
 
         // 2. Первый вызов - данные попадают в кеш
         List<Item> itemsFirst = itemService.getCartItems(userId).collectList().block();

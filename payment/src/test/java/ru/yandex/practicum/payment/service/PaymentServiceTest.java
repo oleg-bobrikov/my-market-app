@@ -20,6 +20,9 @@ import ru.yandex.practicum.payment.model.PaymentStatus;
 import ru.yandex.practicum.payment.repository.AccountRepository;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicReference;
+import java.math.RoundingMode;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -106,7 +109,7 @@ class PaymentServiceTest {
             AccountEntity savedAccount = invocation.getArgument(0);
             // После сохранения findById должен возвращать этот аккаунт
             when(accountRepository.findById(accountId)).thenReturn(Mono.just(savedAccount));
-            return Mono.just(savedAccount).delayElement(java.time.Duration.ofMillis(200));
+            return Mono.just(savedAccount).delayElement(Duration.ofMillis(200));
         });
 
         when(accountRepository.updateBalance(eq(accountId), eq(amountToPay))).thenReturn(Mono.just(1));
@@ -161,7 +164,7 @@ class PaymentServiceTest {
             return Mono.just(savedAccount);
         });
 
-        java.util.concurrent.atomic.AtomicReference<BigDecimal> currentBalance = new java.util.concurrent.atomic.AtomicReference<>();
+        AtomicReference<BigDecimal> currentBalance = new AtomicReference<>();
 
         paymentService.getBalance(accountId)
                 .doOnNext(balance -> {
@@ -173,8 +176,8 @@ class PaymentServiceTest {
                 .verifyComplete();
 
         BigDecimal initialBalance = currentBalance.get();
-        BigDecimal order1 = initialBalance.divide(new BigDecimal("2"), 2, java.math.RoundingMode.HALF_UP);
-        BigDecimal order2 = initialBalance.divide(new BigDecimal("2"), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal order1 = initialBalance.divide(new BigDecimal("2"), 2, RoundingMode.HALF_UP);
+        BigDecimal order2 = initialBalance.divide(new BigDecimal("2"), 2, RoundingMode.HALF_UP);
         BigDecimal order3 = new BigDecimal("1.00"); // Этот платеж должен превысить баланс
 
         // Перенастраиваем моки для последовательных платежей

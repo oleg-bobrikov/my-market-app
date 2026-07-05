@@ -6,16 +6,26 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.security.oauth2.client.ReactiveOAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.ReactiveOAuth2AuthorizedClientManager;
+import org.springframework.cache.CacheManager;
+import ru.yandex.practicum.shop.repository.CartRepository;
+import ru.yandex.practicum.shop.repository.OrderRepository;
 import ru.yandex.practicum.shop.ShopApplication;
 import ru.yandex.practicum.shop.configuration.EmbeddedRedisConfiguration;
 import ru.yandex.practicum.shop.security.CustomUserDetails;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.springSecurity;
 
@@ -24,6 +34,16 @@ import static org.springframework.security.test.web.reactive.server.SecurityMock
 @AutoConfigureWebTestClient(timeout = "30000")
 @ActiveProfiles("test")
 public abstract class BaseIntegrationTest {
+
+    @MockitoBean
+    private ReactiveClientRegistrationRepository clientRegistrationRepository;
+
+    @MockitoBean
+    private ReactiveOAuth2AuthorizedClientService authorizedClientService;
+
+    @MockitoBean
+    private ReactiveOAuth2AuthorizedClientManager authorizedClientManager;
+
     @Autowired
     protected WebTestClient webTestClient;
 
@@ -31,13 +51,13 @@ public abstract class BaseIntegrationTest {
     private ApplicationContext context;
 
     @Autowired
-    private org.springframework.cache.CacheManager cacheManager;
+    private CacheManager cacheManager;
 
     @Autowired
-    private ru.yandex.practicum.shop.repository.CartRepository cartRepository;
+    private CartRepository cartRepository;
 
     @Autowired
-    private ru.yandex.practicum.shop.repository.OrderRepository orderRepository;
+    private OrderRepository orderRepository;
 
     @BeforeEach
     void setup() {
@@ -73,9 +93,9 @@ public abstract class BaseIntegrationTest {
         );
     }
     protected List<String> extractTitles(String html) {
-        List<String> titles = new java.util.ArrayList<>();
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("<h5[^>]*class=\"card-title\"[^>]*>([^<]+)</h5>");
-        java.util.regex.Matcher matcher = pattern.matcher(html);
+        List<String> titles = new ArrayList<>();
+        Pattern pattern = Pattern.compile("<h5[^>]*class=\"card-title\"[^>]*>([^<]+)</h5>");
+        Matcher matcher = pattern.matcher(html);
         while (matcher.find()) {
             String title = matcher.group(1).trim();
             if (!title.isEmpty()) {

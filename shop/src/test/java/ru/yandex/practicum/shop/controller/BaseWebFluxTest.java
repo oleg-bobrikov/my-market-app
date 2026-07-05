@@ -12,6 +12,10 @@ import org.springframework.test.context.ContextConfiguration;
 import ru.yandex.practicum.shop.config.SecurityConfig;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
+import org.springframework.security.oauth2.client.ReactiveOAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.ReactiveOAuth2AuthorizedClientManager;
+import ru.yandex.practicum.shop.ShopApplication;
 import org.springframework.transaction.ReactiveTransactionManager;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import ru.yandex.practicum.shop.client.PaymentClient;
@@ -31,10 +35,19 @@ import ru.yandex.practicum.shop.service.*;
 import java.util.List;
 
 @WebFluxTest(controllers = {CartController.class, ItemController.class, OrderController.class, ImageController.class, GlobalErrorHandler.class, LoginController.class}, properties = {"spring.main.allow-bean-definition-overriding=true", "app.cookie.max-age=7d"})
-@ContextConfiguration(classes = {ru.yandex.practicum.shop.ShopApplication.class})
+@ContextConfiguration(classes = {ShopApplication.class})
 @Import(SecurityConfig.class)
 @ActiveProfiles("test")
 public class BaseWebFluxTest {
+
+    @MockitoBean
+    private ReactiveClientRegistrationRepository clientRegistrationRepository;
+
+    @MockitoBean
+    private ReactiveOAuth2AuthorizedClientService authorizedClientService;
+
+    @MockitoBean
+    private ReactiveOAuth2AuthorizedClientManager authorizedClientManager;
 
     @MockitoBean
     protected CartRepository cartRepository;

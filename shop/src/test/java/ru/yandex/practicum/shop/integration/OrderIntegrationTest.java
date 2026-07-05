@@ -7,6 +7,8 @@ import reactor.test.StepVerifier;
 import ru.yandex.practicum.shop.entity.ItemEntity;
 import ru.yandex.practicum.shop.model.CartAction;
 import ru.yandex.practicum.shop.repository.OrderRepository;
+import ru.yandex.practicum.shop.service.CartService;
+import ru.yandex.practicum.shop.repository.ItemRepository;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import ru.yandex.practicum.shop.client.PaymentClient;
 import reactor.core.publisher.Mono;
@@ -21,10 +23,10 @@ import static org.springframework.security.test.web.reactive.server.SecurityMock
 public class OrderIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
-    private ru.yandex.practicum.shop.service.CartService cartService;
+    private CartService cartService;
 
     @Autowired
-    private ru.yandex.practicum.shop.repository.ItemRepository itemRepository;
+    private ItemRepository itemRepository;
 
     @Autowired
     private OrderRepository orderRepository;
