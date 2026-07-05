@@ -83,7 +83,7 @@ class PaymentServiceTest {
 
         StepVerifier.create(result)
                 .expectNextMatches(balance ->
-                        accountId == balance.getClientId() &&
+                        Long.valueOf(accountId).equals(balance.getClientId()) &&
                                 balance.getBalance() != null &&
                                 new BigDecimal(balance.getBalance()).compareTo(amount) == 0)
                 .verifyComplete();

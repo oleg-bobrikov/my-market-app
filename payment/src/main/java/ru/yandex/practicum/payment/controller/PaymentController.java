@@ -2,6 +2,7 @@ package ru.yandex.practicum.payment.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -21,6 +22,7 @@ public class PaymentController implements BalanceApi, DefaultApi {
 
     @Override
     @PostMapping({"", "/"})
+    @PreAuthorize("hasAuthority('SERVICE')")
     public Mono<ResponseEntity<PaymentResponse>> payOrder(
             @RequestBody Mono<PaymentRequest> paymentRequest,
             ServerWebExchange exchange
@@ -32,6 +34,7 @@ public class PaymentController implements BalanceApi, DefaultApi {
 
     @Override
     @GetMapping("/balance/{accountId}")
+    @PreAuthorize("hasAuthority('SERVICE')")
     public Mono<ResponseEntity<Balance>> getBalance(
             @PathVariable Long accountId,
             ServerWebExchange exchange
