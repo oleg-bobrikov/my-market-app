@@ -28,34 +28,34 @@ services:
       timeout: 3s
       retries: 5
 
-#  payment:
-#    build:
-#      context: .
-#      dockerfile: payment/Dockerfile
-#    ports:
-#      - "8081:8081"
-#    environment:
-#      - SERVER_PORT=8081
-#      - SPRING_R2DBC_URL=r2dbc:h2:mem:///payment;DB_CLOSE_DELAY=-1
-#      - JWT_ISSUER_URI=http://keycloak:8080/realms/my-market-app
-#    depends_on:
-#      keycloak:
-#        condition: service_healthy
-#      redis:
-#        condition: service_healthy
-#
-#  shop:
-#    build:
-#      context: .
-#      dockerfile: shop/Dockerfile
-#    ports:
-#      - "8080:8080"
-#    environment:
-#      - SERVER_PORT=8080
-#      - SPRING_DATA_REDIS_HOST=redis
-#      - PAYMENT_SERVICE_URL=http://payment:8081/payments/api
-#    depends_on:
-#      redis:
-#        condition: service_healthy
-#      payment:
-#        condition: service_started
+  payment:
+    build:
+      context: .
+      dockerfile: payment/Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - SERVER_PORT=8081
+      - SPRING_R2DBC_URL=r2dbc:h2:mem:///payment;DB_CLOSE_DELAY=-1
+      - JWT_ISSUER_URI=http://keycloak:8080/realms/my-market-app
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  shop:
+    build:
+      context: .
+      dockerfile: shop/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - SPRING_DATA_REDIS_HOST=redis
+      - PAYMENT_SERVICE_URL=http://payment:8081/payments/api
+    depends_on:
+      redis:
+        condition: service_healthy
+      payment:
+        condition: service_started
