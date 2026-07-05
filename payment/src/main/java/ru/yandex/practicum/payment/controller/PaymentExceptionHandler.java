@@ -3,6 +3,7 @@ package ru.yandex.practicum.payment.controller;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import reactor.core.publisher.Mono;
@@ -33,6 +34,17 @@ public class PaymentExceptionHandler {
         errorResponse.setMessage(ex.getMessage() != null ? ex.getMessage() : "Некорректный запрос");
         return Mono.just(ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .body(errorResponse));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleAccessDeniedException(AccessDeniedException ex) {
+        log.warn("Доступ запрещен: {}", ex.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse();
+        errorResponse.setStatus(PaymentStatus.ERROR);
+        errorResponse.setMessage("Доступ запрещен: недостаточно прав");
+        return Mono.just(ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
                 .body(errorResponse));
     }
 
